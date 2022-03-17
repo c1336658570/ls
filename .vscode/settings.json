@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "stdlib.h": "c",
+        "stat.h": "c",
+        "pwd.h": "c",
+        "dirent.h": "c",
+        "types.h": "c",
+        "unistd.h": "c",
+        "string.h": "c",
+        "ioctl.h": "c",
+        "limits": "c",
+        "my_ls.h": "c",
+        "errno.h": "c"
+    }
+}
