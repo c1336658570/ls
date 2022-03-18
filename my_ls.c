@@ -269,9 +269,9 @@ void show(char *dirname)
         str_num = strlen(dirp->d_name)>str_num ? strlen(dirp->d_name) : str_num;
     }
     getwidth();
+    rewinddir(dp);
     if (r_flag || t_flag)
     {
-        rewinddir(dp);
         i = 0;
         while ( (dirp = readdir(dp)) != NULL )
         {
@@ -327,6 +327,8 @@ void show(char *dirname)
             }
             else 
             { 
+                if (!a_flag && dirp->d_name[0] == '.')
+                    continue;
                 one_width++;
                 if (terminalwidth % one_width == 0)
                     row_num = terminalwidth / one_width;
@@ -343,7 +345,6 @@ void show(char *dirname)
     }
     else
     {
-        rewinddir(dp);
         i = 0;
         while ( (dirp = readdir(dp)) != NULL )
         {
@@ -390,6 +391,8 @@ void show(char *dirname)
             }
             else 
             {
+                if (!a_flag && dirp->d_name[0] == '.')
+                    continue;
                 one_width++;
                 if (terminalwidth % one_width == 0)
                     row_num = terminalwidth / one_width;
@@ -404,20 +407,19 @@ void show(char *dirname)
             } 
         }
         printf("\n");
-
-        if (R_flag)
+    }
+    if (R_flag)
+    {
+        rewinddir(dp);
+        while ( (dirp = readdir(dp)) != NULL )
         {
-            rewinddir(dp);
-            while ( (dirp = readdir(dp)) != NULL )
+            if (strcmp(dirp->d_name, ".") == 0 || strcmp(dirp->d_name, "..") == 0)
+                continue;
+            sprintf(fullpath,"%s/%s",dirname,dirp->d_name);
+            if ( isadir(fullpath) )
             {
-                if (!a_flag && dirp->d_name[0] == '.')
-                    continue;
-                sprintf(fullpath,"%s/%s",dirname,dirp->d_name);
-                if ( isadir(fullpath) )
-                {
-                    show(fullpath);
-                    printf("\n");
-                }
+                show(fullpath);
+                printf("\n");
             }
         }
     }
