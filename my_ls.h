@@ -9,7 +9,7 @@
 # include <grp.h>
 # include <time.h>
 # include <stdbool.h>
-#include<sys/ioctl.h>
+# include<sys/ioctl.h>
 
 void getwidth();
 void permission(int len, char *argv[]);
@@ -25,8 +25,7 @@ void revise_time(struct timespec st_mtimeee);
 void dir_name(char *filename);
 void i_information(long d_ino);
 void disk_size(blkcnt_t blocks);
-void show(int len, char *argv[]);
+void show(char *dirname);
 int cmp1( const void *p ,const void *q );
 int cmp2( const void *p,const void *q );
-void print(char *dir);
-void getstat(char *dir);
+bool isadir(char *dirname);

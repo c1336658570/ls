@@ -1,15 +1,20 @@
 // -a、-l、-R、-t、-r、-i、-s 
 # include "my_ls.h"
 
-#define LenOfName 256
-#define maxN 1005
-#define maxM 505
-#define maxL 105
-#define LenOfPath 256<<4
-#define MAX_PATH 1024 
+# define LenOfName 256
+# define maxN 1005
+# define maxM 505
+# define maxL 105
+# define LenOfPath 256<<4
+# define MAX_PATH 1024 
+# define MAXNAME 256
 int flag = 0;
 int num_directory = 0;
-int terminalWidth;
+int terminalwidth = 0;
+int str_num = 0;
+int row_num = 0;
+int one_width = 0;
+int total_length = 0;
 bool have_directory = false;
 bool a_flag = false;
 bool l_flag = false;
@@ -31,7 +36,7 @@ int main(int argc,char*argv[])
     int i;
 
 	if(argc == 1)
-		ls(".");
+		show(".");
 	else
 	{
         for (i = 1; i < argc; ++i)
@@ -60,13 +65,13 @@ void getwidth()
 {
     char *tp;
     struct winsize wbuf;
-    terminalWidth = 80;  
+    terminalwidth = 80;  
     if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &wbuf) == -1 || wbuf.ws_col == 0){
         if( tp = getenv("COLUMNS") )
-            terminalWidth = atoi( tp );
+            terminalwidth = atoi( tp );
     }
     else
-        terminalWidth = wbuf.ws_col;
+        terminalwidth = wbuf.ws_col;
     return;
 }
 
@@ -128,45 +133,13 @@ void permission(int len, char *argv[])
     {
         for (int i = (len - 1); i >= (len - num_directory); i--)
         {
-            show(len, argv);
+            show(argv[i]);
         }
     }
     else
     {
-        show(len, argv);
+        show(".");
     }
-}
-
-//无任何参数
-void ls(char *filename)
-{
-    DIR *dp;
-    struct dirent *dirp;
-    
-    if ( (dp = opendir(filename)) == NULL )
-        perror("opendir fail");
-    while ( (dirp = readdir(dp)) != NULL )
-    {
-        if (dirp->d_name[0] == '.')
-            continue;
-        printf("%s\n", dirp->d_name);
-    }
-    closedir(dp);
-
-}
-
-//ls_a
-void ls_a(char *filename)
-{
-    DIR *dp;
-    struct dirent *dirp;
-
-    if ( (dp = opendir(filename)) == NULL )
-        perror("opendir fail");
-    while ( ( dirp = readdir(dp) ) != NULL )
-        printf("%s\n", dirp->d_name);
-    
-    closedir(dp);
 }
 
 void ls_t(char *dirname)
@@ -274,41 +247,122 @@ void disk_size(blkcnt_t blocks)
     printf("%-4ld ", blocks);
 }
 
-void show(int len, char *argv[])
+void show(char *dirname)
 {
-    char name[MAX_PATH];
-    static int i;
-    i = flag;
+    char *fullpath;
     DIR *dp;
     struct dirent *dirp;
     struct stat statbuf;
-    if (num_directory == 0)
+    char filename[200][200];
+    int cnt = 0, i = 0, j = 0;
+
+    if ( (dp = opendir(dirname)) == NULL )
     {
-        if ( (dp = opendir(".") ) == NULL )
+        perror("open fails");
+        return;
+    }
+
+    fullpath = (char *)malloc(sizeof(dirname) + 1 + MAXNAME);
+    printf("%s:\n", dirname);
+    while ( (dirp = readdir(dp)) != NULL )
+    {
+        str_num = strlen(dirp->d_name)>str_num ? strlen(dirp->d_name) : str_num;
+    }
+    getwidth();
+    if (r_flag || t_flag)
+    {
+        rewinddir(dp);
+        i = 0;
+        while ( (dirp = readdir(dp)) != NULL )
         {
-            perror("open fails");
-            return;
+            sprintf(filename[cnt++], "%s", dirp->d_name);
         }
+        if (t_flag)
+        {
+
+        }
+        for (j = cnt-1; j >= 0; --j)
+        {
+            one_width = 0;
+            one_width += str_num;
+            sprintf(fullpath, "%s/%s", dirname, filename[j]);
+            if ( lstat(fullpath, &statbuf) == -1 )
+            {
+                perror("Failed to get stat");
+                return;
+            }
+            //控制宽度
+            if (i_flag)
+            {
+                one_width += 8;
+            }
+            if (s_flag)
+            {
+                one_width += 5;
+            }
+            if (i_flag)
+            {
+                if (!a_flag && filename[j][0] == '.')
+                    continue;
+                i_information(statbuf.st_ino);
+            }
+            if (s_flag)
+            {
+                if (!a_flag && filename[j][0] == '.')
+                    continue;
+                disk_size(statbuf.st_blocks);
+            }
+            if (l_flag)
+            {
+                if (!a_flag && filename[j][0] == '.')
+                    continue;
+                power(statbuf.st_mode);
+                linkk(statbuf.st_nlink);
+                uidname(statbuf.st_uid);
+                gidname(statbuf.st_gid);
+                dirsize(statbuf.st_size);
+                revise_time(statbuf.st_mtim);
+                dir_name(filename[j]);
+                printf("\n");
+            }
+            else 
+            { 
+                one_width++;
+                if (terminalwidth % one_width == 0)
+                    row_num = terminalwidth / one_width;
+                else 
+                    row_num = terminalwidth / one_width - 1;
+                
+                printf("%-*s ", str_num, filename[j]);
+                i++;
+                if (i % row_num == 0)
+                    putchar('\n');
+            }   
+        }
+        printf("\n");
     }
     else
     {
-        if ( (dp = opendir(argv[++i])) == NULL )
+        rewinddir(dp);
+        i = 0;
+        while ( (dirp = readdir(dp)) != NULL )
         {
-            perror("open fails");
-            return;
-        }
-    }
-    while ( (dirp = readdir(dp)) != NULL )
-    {
-        sprintf(name, "%s/%s", argv[i], dirp->d_name);
-        if ( lstat(name, &statbuf) == -1)
-        {
-            perror("Failed to get stat");
-            return;
-        }
-
-        if (!R_flag && !t_flag && !r_flag)
-        {
+            one_width = 0;
+            one_width += str_num;
+            sprintf(fullpath, "%s/%s", dirname, dirp->d_name);
+            if ( lstat(fullpath, &statbuf) == -1)
+            {
+                perror("Failed to get stat");
+                return;
+            }
+            if (i_flag)
+            {
+                one_width += 8;
+            }
+            if (s_flag)
+            {
+                one_width += 5;
+            }
             if (i_flag)
             {
                 if (!a_flag && dirp->d_name[0] == '.')
@@ -331,11 +385,44 @@ void show(int len, char *argv[])
                 gidname(statbuf.st_gid);
                 dirsize(statbuf.st_size);
                 revise_time(statbuf.st_mtim);
+                dir_name(dirp->d_name);
+                printf("\n");
             }
-            dir_name(dirp->d_name);
-            printf("\n");
+            else 
+            {
+                one_width++;
+                if (terminalwidth % one_width == 0)
+                    row_num = terminalwidth / one_width;
+                else 
+                    row_num = terminalwidth / one_width - 1;
+
+                printf("%-*s ", str_num+1, dirp->d_name);
+                i++;
+                if (i % row_num == 0 )
+                    putchar('\n');
+                
+            } 
+        }
+        printf("\n");
+
+        if (R_flag)
+        {
+            rewinddir(dp);
+            while ( (dirp = readdir(dp)) != NULL )
+            {
+                if (!a_flag && dirp->d_name[0] == '.')
+                    continue;
+                sprintf(fullpath,"%s/%s",dirname,dirp->d_name);
+                if ( isadir(fullpath) )
+                {
+                    show(fullpath);
+                    printf("\n");
+                }
+            }
         }
     }
+    closedir(dp);
+    free(fullpath);
 }
 
 //文件名排序
@@ -366,48 +453,13 @@ int cmp2( const void *p,const void *q )
     return (*(struct outputFile *)p).modify_time < (*(struct outputFile *)q).modify_time;
 }
 
-void print(char *dir)
-{
-    char name[MAX_PATH];
-    struct dirent *dirp;
-    DIR *dp;
-
-    if ( (dp = opendir (dir) ) == NULL )
-    {
-        fprintf(stderr, "open fail");
-        return;
-    }
-    while ( (dirp = readdir(dp)) != NULL )
-    {
-        if ( !strcmp(dirp->d_name, ".") || !strcmp(dirp->d_name, ".."))
-            continue;
-        
-        if (strlen(dir) + strlen(dirp->d_name) + 2 > MAX_PATH)
-        {
-            fprintf(stderr, "name too long");
-            return;
-        }
-        sprintf(name, "%s/%s", dir, dirp->d_name);
-        getstat(name);
-    }
-    closedir(dp);
-
-}
-
-void getstat(char *dir)
+bool isadir(char *dirname)
 {
     struct stat statbuf;
-
-    if ( ( lstat(dir, &statbuf) ) == -1 )
+    if ( lstat(dirname, &statbuf) != -1 )
     {
-        fprintf(stderr, "failed to get stat(%s)", dir);
-        return;
+        if (S_ISDIR(statbuf.st_mode))
+            return true;
     }
-    if ( S_ISDIR(statbuf.st_mode) )
-    {
-        print(dir);
-    }
-    printf("%8ld %s\n", statbuf.st_size, dir);
-
-    return;
+    return false;
 }
