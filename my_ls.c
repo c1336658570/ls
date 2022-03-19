@@ -186,9 +186,12 @@ void revise_time(struct timespec st_mtimeee)
 }
 
 //输出文件名
-void dir_name(char *filename)
+void dir_name(char *filename, int mode)
 {
-    printf("%s", filename);
+    if (S_ISDIR(mode))
+        printf("\033[34m%s\033[0m", filename);
+    else
+        printf("%s", filename);
 }
 
 //输出i节点号
@@ -287,7 +290,7 @@ void show(char *dirname)
                 gidname(statbuf.st_gid);
                 dirsize(statbuf.st_size);
                 revise_time(statbuf.st_mtim);
-                dir_name(filenam[j].FileName);
+                dir_name(filenam[j].FileName, statbuf.st_mode);
                 printf("\n");
             }
             else 
@@ -299,7 +302,10 @@ void show(char *dirname)
                     row_num = terminalwidth / one_width;
                 else 
                     row_num = terminalwidth / one_width - 1;
-                printf("%-*s", str_num+1, filenam[j].FileName);
+                if (S_ISDIR(statbuf.st_mode))
+                    printf("\033[34m%-*s\033[0m", str_num+1, filenam[j].FileName);
+                else
+                    printf("%-*s", str_num+1, filenam[j].FileName);
                 i++;
                 if (i % row_num == 0)
                     putchar('\n');
@@ -350,7 +356,7 @@ void show(char *dirname)
                 gidname(statbuf.st_gid);
                 dirsize(statbuf.st_size);
                 revise_time(statbuf.st_mtim);
-                dir_name(dirp->d_name);
+                dir_name(dirp->d_name, statbuf.st_mode);
                 printf("\n");
             }
             else 
@@ -366,11 +372,17 @@ void show(char *dirname)
                 {
                     if (strlen(dirp->d_name) + 5 + 8 > terminalwidth)
                         printf("\n");
-                    printf("%-*s \n", str_num+1, dirp->d_name);
+                    if (S_ISDIR(statbuf.st_mode))
+                        printf("\033[34m%-*s \n\033[0m", str_num+1, dirp->d_name);
+                    else
+                        printf("%-*s \n", str_num+1, dirp->d_name);
                 }
                 else
                 {
-                    printf("%-*s ", str_num+1, dirp->d_name);
+                    if (S_ISDIR(statbuf.st_mode))
+                        printf("\033[34m%-*s \n\033[0m", str_num+1, dirp->d_name);
+                    else
+                        printf("%-*s \n", str_num+1, dirp->d_name);
                     i++;
                     if (i % row_num == 0 )
                         putchar('\n');
@@ -443,9 +455,9 @@ int FindPos(struct file * a, int low, int high)
 		while (low<high && a[low].modify_time >= val.modify_time)
 			++low;
 		a[high] = a[low];
-	}//终止while循环之后low和high一定是相等的
+	}
 
 	a[low] = val; 
 
-	return high; //high可以改为low, 但不能改为val 也不能改为a[low]  也不能改为a[high]
+	return high;
 }

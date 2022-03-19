@@ -11,6 +11,7 @@
 # include <time.h>
 # include <stdbool.h>
 # include<sys/ioctl.h>
+#include <fcntl.h>
 
 # define LenOfName 256
 # define maxN 1005
@@ -47,7 +48,7 @@ char* uidname(uid_t uid);
 char* gidname(gid_t gid);
 void dirsize(off_t ssizee);
 void revise_time(struct timespec st_mtimeee);
-void dir_name(char *filename);
+void dir_name(char *filename, int mode);
 void i_information(long d_ino);
 void disk_size(blkcnt_t blocks);
 void show(char *dirname);
