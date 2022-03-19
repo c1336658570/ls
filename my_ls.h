@@ -13,9 +13,6 @@
 
 void getwidth();
 void permission(int len, char *argv[]);
-void ls(char *filename);
-void ls_a(char *filename);
-void ls_t(char *dirname);
 void power(int mode);
 void linkk(nlink_t link_num);
 char* uidname(uid_t uid);

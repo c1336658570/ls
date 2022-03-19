@@ -5,12 +5,11 @@
 # define maxN 1005
 # define maxM 505
 # define maxL 105
-# define LenOfPath 256<<4
 # define MAX_PATH 1024 
 # define MAXNAME 256
 int flag = 0;
 int num_directory = 0;
-int terminalwidth = 0;
+int terminalwidth = 120;
 int str_num = 0;
 int row_num = 0;
 int one_width = 0;
@@ -25,11 +24,10 @@ bool i_flag = false;
 bool s_flag = false;
 
 
-struct outputFile{
-    char FileName[ LenOfName ];
-    int modify_time ; 
-    int file_type ;
-}Output[ maxN ],OutputPoint[ maxM ],Temp[ maxN+maxM ];
+struct file{
+    char FileName[MAXNAME];
+    int modify_time; 
+};
 
 int main(int argc,char*argv[])
 {
@@ -142,20 +140,6 @@ void permission(int len, char *argv[])
     }
 }
 
-void ls_t(char *dirname)
-{
-    int cnt = 0;
-    DIR *dp;
-    struct dirent *dirp;
-    if ( (dp = opendir(dirname)) == NULL )
-        perror("opendir fails"); 
-    while ( (dirp = readdir(dp)) != NULL )
-    {
-        cnt++;
-    }
-    char arr[cnt][256];
-}
-
 //输出文件类型和权限
 void power(int mode)
 {
@@ -253,8 +237,8 @@ void show(char *dirname)
     DIR *dp;
     struct dirent *dirp;
     struct stat statbuf;
-    char filename[200][200];
-    int cnt = 0, i = 0, j = 0;
+    struct file filenam[300];
+    int cnt = 0, i = 0, j = 0, k = 0;
 
     if ( (dp = opendir(dirname)) == NULL )
     {
@@ -267,25 +251,25 @@ void show(char *dirname)
     while ( (dirp = readdir(dp)) != NULL )
     {
         str_num = strlen(dirp->d_name)>str_num ? strlen(dirp->d_name) : str_num;
+        k++;
     }
-    getwidth();
     rewinddir(dp);
     if (r_flag || t_flag)
     {
         i = 0;
         while ( (dirp = readdir(dp)) != NULL )
         {
-            sprintf(filename[cnt++], "%s", dirp->d_name);
+            sprintf(filenam[cnt++].FileName, "%s", dirp->d_name);
         }
         if (t_flag)
         {
-
+            
         }
         for (j = cnt-1; j >= 0; --j)
         {
             one_width = 0;
             one_width += str_num;
-            sprintf(fullpath, "%s/%s", dirname, filename[j]);
+            sprintf(fullpath, "%s/%s", dirname, filenam[j].FileName);
             if ( lstat(fullpath, &statbuf) == -1 )
             {
                 perror("Failed to get stat");
@@ -302,19 +286,19 @@ void show(char *dirname)
             }
             if (i_flag)
             {
-                if (!a_flag && filename[j][0] == '.')
+                if (!a_flag && filenam[j].FileName[0] == '.')
                     continue;
                 i_information(statbuf.st_ino);
             }
             if (s_flag)
             {
-                if (!a_flag && filename[j][0] == '.')
+                if (!a_flag && filenam[j].FileName[0] == '.')
                     continue;
                 disk_size(statbuf.st_blocks);
             }
             if (l_flag)
             {
-                if (!a_flag && filename[j][0] == '.')
+                if (!a_flag && filenam[j].FileName[0] == '.')
                     continue;
                 power(statbuf.st_mode);
                 linkk(statbuf.st_nlink);
@@ -322,20 +306,19 @@ void show(char *dirname)
                 gidname(statbuf.st_gid);
                 dirsize(statbuf.st_size);
                 revise_time(statbuf.st_mtim);
-                dir_name(filename[j]);
+                dir_name(filenam[j].FileName);
                 printf("\n");
             }
             else 
             { 
-                if (!a_flag && dirp->d_name[0] == '.')
+                if (!a_flag && filenam[j].FileName[0] == '.')
                     continue;
                 one_width++;
                 if (terminalwidth % one_width == 0)
                     row_num = terminalwidth / one_width;
                 else 
                     row_num = terminalwidth / one_width - 1;
-                
-                printf("%-*s ", str_num, filename[j]);
+                printf("%-*s", str_num+1, filenam[j].FileName);
                 i++;
                 if (i % row_num == 0)
                     putchar('\n');
@@ -398,11 +381,20 @@ void show(char *dirname)
                     row_num = terminalwidth / one_width;
                 else 
                     row_num = terminalwidth / one_width - 1;
-
-                printf("%-*s ", str_num+1, dirp->d_name);
-                i++;
-                if (i % row_num == 0 )
-                    putchar('\n');
+                if (row_num < 1)
+                {
+                    if (strlen(dirp->d_name) + 5 + 8 > terminalwidth)
+                        printf("\n");
+                    printf("%-*s \n", str_num+1, dirp->d_name);
+                }
+                else
+                {
+                    printf("%-*s ", str_num+1, dirp->d_name);
+                    i++;
+                    if (i % row_num == 0 )
+                        putchar('\n');
+                }
+                
                 
             } 
         }
@@ -426,33 +418,11 @@ void show(char *dirname)
     closedir(dp);
     free(fullpath);
 }
-
-//文件名排序
-int cmp1( const void *p ,const void *q )
-{
-    char T1[ LenOfName ],T2[ LenOfName ];
-    strcpy( T1,(*(struct outputFile *)p).FileName );
-    strcpy( T2,(*(struct outputFile *)q).FileName );
-    int len1 = strlen( T1 );
-    int i ;
-    for( i=0;i<len1;i++ ){
-        if( T1[ i ]>='A' && T1[ i ]<='Z' ){
-            T1[ i ] = T1[ i ] - 'A' + 'a';
-        }
-    }
-    int len2 = strlen( T2 );
-    for( i=0;i<len2;i++ ){
-        if( T2[ i ]>='A' && T2[ i ]<='Z' ){
-            T2[ i ] = T2[ i ] - 'A' + 'a';
-        }
-    }
-    return strcmp( T1,T2 );
-}
  
 //修改时间排序
 int cmp2( const void *p,const void *q )
 {
-    return (*(struct outputFile *)p).modify_time < (*(struct outputFile *)q).modify_time;
+    return (*(struct file *)p).modify_time < (*(struct file *)q).modify_time;
 }
 
 bool isadir(char *dirname)
