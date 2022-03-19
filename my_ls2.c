@@ -1,6 +1,34 @@
 // -a、-l、-R、-t、-r、-i、-s 
 # include "my_ls.h"
 
+# define LenOfName 256
+# define maxN 1005
+# define maxM 505
+# define maxL 105
+# define MAX_PATH 1024 
+# define MAXNAME 256
+int flag = 0;
+int num_directory = 0;
+int terminalwidth = 120;
+int str_num = 0;
+int row_num = 0;
+int one_width = 0;
+int total_length = 0;
+bool have_directory = false;
+bool a_flag = false;
+bool l_flag = false;
+bool R_flag = false;
+bool t_flag = false;
+bool r_flag = false;
+bool i_flag = false;
+bool s_flag = false;
+
+
+struct file{
+    char FileName[MAXNAME];
+    int modify_time; 
+};
+
 int main(int argc,char*argv[])
 {
     int i;
@@ -209,7 +237,8 @@ void show(char *dirname)
     DIR *dp;
     struct dirent *dirp;
     struct stat statbuf;
-    int cnt = 0, i = 0, j = 0, count = 0;
+    struct file filenam[300];
+    int cnt = 0, i = 0, j = 0, k = 0;
 
     if ( (dp = opendir(dirname)) == NULL )
     {
@@ -222,29 +251,19 @@ void show(char *dirname)
     while ( (dirp = readdir(dp)) != NULL )
     {
         str_num = strlen(dirp->d_name)>str_num ? strlen(dirp->d_name) : str_num;
-        count++;
+        k++;
     }
-    struct file *filenam = (struct file *)malloc(sizeof(struct file) * count);
     rewinddir(dp);
-    if (r_flag || t_flag && !R_flag)
+    if (r_flag || t_flag)
     {
         i = 0;
         while ( (dirp = readdir(dp)) != NULL )
         {
-            sprintf(filenam[cnt].FileName, "%s", dirp->d_name);
-            sprintf(fullpath, "%s/%s", dirname, filenam[cnt].FileName);
-            if ( lstat(fullpath, &statbuf) == -1 )
-            {
-                perror("Failed to get stat");
-                return;
-            }
-            filenam[cnt].modify_time = statbuf.st_mtim.tv_sec;
-            cnt++;
+            sprintf(filenam[cnt++].FileName, "%s", dirp->d_name);
         }
-       
         if (t_flag)
         {
-            QuickSort(filenam, 0, count-1);
+            
         }
         for (j = cnt-1; j >= 0; --j)
         {
@@ -398,13 +417,12 @@ void show(char *dirname)
     }
     closedir(dp);
     free(fullpath);
-    free(filenam);
 }
  
 //修改时间排序
-int cmp( const void *p,const void *q )
+int cmp2( const void *p,const void *q )
 {
-    return ( *(struct file *)p ).modify_time - ( *(struct file *)q ).modify_time;
+    return (*(struct file *)p).modify_time < (*(struct file *)q).modify_time;
 }
 
 bool isadir(char *dirname)
@@ -416,36 +434,4 @@ bool isadir(char *dirname)
             return true;
     }
     return false;
-}
-
-void QuickSort(struct file * a, int low, int high)
-{
-	int pos;
-
-	if (low < high)
-	{
-		pos = FindPos(a, low, high);
-		QuickSort(a, low, pos-1);
-		QuickSort(a, pos+1, high);
-	}	
-}
-
-int FindPos(struct file * a, int low, int high)
-{
-	struct file val = a[low];
-
-	while (low < high)
-	{
-		while (low<high  && a[high].modify_time <= val.modify_time)
-			--high;
-		a[low] = a[high];
-
-		while (low<high && a[low].modify_time >= val.modify_time)
-			++low;
-		a[high] = a[low];
-	}//终止while循环之后low和high一定是相等的
-
-	a[low] = val; 
-
-	return high; //high可以改为low, 但不能改为val 也不能改为a[low]  也不能改为a[high]
 }
