@@ -229,7 +229,7 @@ void show(char *dirname)
     }
     struct file *filenam = (struct file *)malloc(sizeof(struct file) * count);
     rewinddir(dp);
-    if (r_flag || t_flag && !R_flag)
+    if (r_flag || t_flag)
     {
         i = 0;
         while ( (dirp = readdir(dp)) != NULL )
@@ -302,13 +302,25 @@ void show(char *dirname)
                     row_num = terminalwidth / one_width;
                 else 
                     row_num = terminalwidth / one_width - 1;
-                if (S_ISDIR(statbuf.st_mode))
-                    printf("\033[34m%-*s\033[0m", str_num+1, filenam[j].FileName);
+                if (row_num < 1)
+                {
+                    if (strlen(filenam[j].FileName) + 5 + 8 > terminalwidth)
+                        printf("\n");
+                    if (S_ISDIR(statbuf.st_mode))
+                        printf("\033[34m%-*s \n\033[0m", str_num+1, filenam[j].FileName);
+                    else
+                        printf("%-*s \n", str_num+1, filenam[j].FileName);
+                }
                 else
-                    printf("%-*s", str_num+1, filenam[j].FileName);
-                i++;
-                if (i % row_num == 0)
-                    putchar('\n');
+                {
+                    if (S_ISDIR(statbuf.st_mode))
+                        printf("\033[34m%-*s \n\033[0m", str_num+1, filenam[j].FileName);
+                    else
+                        printf("%-*s \n", str_num+1,filenam[j].FileName);
+                    i++;
+                    if (i % row_num == 0 )
+                        putchar('\n');
+                }
             }   
         }
         printf("\n");
