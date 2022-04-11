@@ -92,22 +92,32 @@ void do_cmd(int account, char (*arg)[256])
     
 }
 
-void command_pipe()
+void command_pipe(int account, char (*arg)[256])
 {
 
 }
 
-void input_redirect()
+void input_redirect(int account, char (*arg)[256])
 {
 
 }
 
-void output_redirect()
+void output_redirect(int account, char (*arg)[256])
 {
 
 }
 
-void append_redirect()
+void append_redirect(int account, char (*arg)[256])
+{
+
+}
+
+void command_cd(int account, char (*arg)[256])
+{
+
+}
+
+void Background(int account, char (*arg)[256])
 {
     
 }
