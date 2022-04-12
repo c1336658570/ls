@@ -8,6 +8,10 @@
 # include <readline/readline.h>
 # include <readline/history.h>
 # include <error.h>
+# include <sys/stat.h>
+# include <sys/types.h>
+# include <fcntl.h>
+
 
 # define REGULAR 0  //普通命令
 # define INPUT_REDIRECT 1 //输入重定向

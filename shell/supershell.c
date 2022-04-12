@@ -6,6 +6,8 @@
 屏蔽一些信号（如 ctrl + c 不能终止）
 */
 
+int background;
+
 # include "supershell.h"
 
 int main(void)
@@ -89,20 +91,80 @@ void command_parsing(char *buf, char (*arg)[256], int *commandsize)
 
 void do_cmd(int account, char (*arg)[256])
 {
-    
-}
+    int i;
 
-void command_pipe(int account, char (*arg)[256])
-{
-
-}
-
-void input_redirect(int account, char (*arg)[256])
-{
-
+    //后台运行
+    for (i = 0; i < account; ++i)
+    {
+        if ( strcmp(arg[i], "&") == 0 )
+            background = 1;
+    }
+    //cd命令
+    for (i = 0; i < account; ++i)
+    {
+        if ( strcmp(arg[i], "cd") == 0 )
+        {
+            command_cd(account, arg);
+            return;
+        }
+    }
+    //重定向输出
+    for (i = 0; i < account; ++i)
+    {
+        if ( strcmp(arg[i], ">") == 0 )
+        {
+            output_redirect(account, arg);
+            return;
+        }
+    }
+    //重定向输入
 }
 
 void output_redirect(int account, char (*arg)[256])
+{
+    int i = 0;
+    char *argv[50];
+    for (i = 0; i < account; ++i)
+    {
+        argv[i] = arg[i];
+        if ( strcmp(arg[i], ">") == 0 )
+        {
+            argv[i] = NULL;
+        }
+    }
+    pid_t pid = fork();
+
+    if (pid < 0)
+    {
+        sys_error("fork fails");
+    }
+    else if (pid == 0)
+    {
+        if (background == 1)
+            return;
+        else
+            wait(NULL);
+    }
+    else
+    {
+        i = 0;
+        while (argv[i] != NULL)
+        {
+            i++;
+        }
+        i++;
+        int fd = open(arg[i], O_RDWR|O_CREAT|O_TRUNC, 777);
+        if (fd == -1)
+        {
+            sys_error("open fails");
+        }
+        sleep(2);
+        dup2(fd, STDOUT_FILENO);
+        execvp(argv[0], argv);
+    }
+}
+
+void input_redirect(int account, char (*arg)[256])
 {
 
 }
@@ -112,14 +174,40 @@ void append_redirect(int account, char (*arg)[256])
 
 }
 
-void command_cd(int account, char (*arg)[256])
+void command_pipe(int account, char (*arg)[256])
 {
 
 }
 
+void command_cd(int account, char (*arg)[256])
+{
+    static char old_cd[256];  //保存上一个工作路径
+    static char oold_cd[256]; 
+    getcwd(oold_cd, 256);
+    if ( strcmp(arg[1], "-") != 0 )
+    {
+        getcwd(old_cd, 256);
+    }
+    
+    if ( strcmp(arg[1], "~") == 0 )
+    {
+        chdir("/home/cccmmf");
+    }
+    else if ( strcmp(arg[1], "-") == 0 )
+    {
+        chdir (old_cd);
+        strcpy(old_cd, oold_cd);
+    }
+    else
+    {
+        chdir(arg[1]);
+    }
+    
+}
+
 void Background(int account, char (*arg)[256])
 {
-    
+
 }
 
 void sys_error(char * str)
