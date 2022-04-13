@@ -27,5 +27,4 @@ void input_redirect(int account, char (*arg)[256]);  //输入重定向
 void output_redirect(int account, char (*arg)[256]);  //输出重定向
 void append_redirect(int account, char (*arg)[256]);  //追加重定向
 void command_cd(int account, char (*arg)[256]);  //cd
-void Background(int account, char (*arg)[256]);  //后台运行
 void sys_error(char * str);  //错误处理

@@ -135,6 +135,14 @@ void do_cmd(int account, char (*arg)[256])
             return;
         }
     }
+    //管道
+    for (i = 0; i < account; ++i)
+    {
+        if ( strcmp(arg[i], "|") == 0 )
+        {
+            command_pipe(account, arg);
+        }
+    }
 }
 
 void output_redirect(int account, char (*arg)[256])
@@ -163,7 +171,7 @@ void output_redirect(int account, char (*arg)[256])
             i++;
         }
         i++;
-        int fd = open(arg[i], O_RDWR|O_CREAT|O_TRUNC, 644);
+        int fd = open(arg[i], O_RDWR|O_CREAT|O_TRUNC, 0644);
         if (fd == -1)
         {
             sys_error("open fails");
@@ -280,7 +288,67 @@ void append_redirect(int account, char (*arg)[256])
 
 void command_pipe(int account, char (*arg)[256])
 {
+    int i;
+    char *argv[50];
 
+    for (i = 0; i < account; ++i)
+    {
+        argv[i] = arg[i];
+        if ( strcmp(argv[i], "|") )
+        {
+            argv[i] = NULL;
+        }
+    }
+
+    pid_t pid;
+    for (i = 0; i < 2; ++i)
+    {
+        pid = fork();
+        if (pid < 0)
+        {
+            sys_error("fork fails");
+        }
+    }
+
+    int pipe_fd[2];
+    if ( pipe(pipe_fd) == -1 )
+    {
+        sys_error("pipe fails");
+    }
+    if (i == 0)  //子进程0写
+    {
+        close(pipe_fd[0]);
+        dup2(pipe_fd[1], STDOUT_FILENO);
+        execvp(argv[0], argv);
+    }
+    else if (i == 1)  //子进程1读
+    {
+        close(pipe_fd[1]);
+        dup2(pipe_fd[0], STDIN_FILENO);
+        for (i = 0; i < account; ++i)
+        {
+            if (argv[i] == NULL)
+            {
+                break;
+            }
+        }
+        i++;
+        execvp(argv[i],  argv + i);
+    }
+    else
+    {
+        close(pipe_fd[0]);
+        close(pipe_fd[1]);
+        if (background == 1)
+            return;
+        else
+        {
+            for (i = 0; i < 2; ++i)
+            {
+                wait(NULL);
+            }
+        }
+    }
 }
 
 void command_cd(int account, char (*arg)[256])
