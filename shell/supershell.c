@@ -302,6 +302,78 @@ void append_redirect(int account, char (*arg)[256])
     }
 }
 
+//文件实现管道
+void file_pipe(int account, char (*arg)[256])
+{
+    int i, pipe_number = 0;
+    char *argv[50];
+    int k = 0, t = 0;
+
+    for (i = 0; i < 50; ++i)
+    {
+        argv[i] = NULL;
+    }
+    for (i = 0; i < account; ++i)
+    {
+        argv[i] = arg[i];
+        if ( strcmp(argv[i], "|") )
+        {
+            pipe_number++;
+            argv[i] = NULL;
+        }
+    }
+
+    pid_t pid;
+    for (i = 0; i < pipe_number+1; ++i)
+    {
+        if ( ( pid = fork() ) == 0 )
+        {
+            break;
+        }
+        if (pid < 0)
+        {
+            sys_error("fork fails");
+        }
+    }
+    if (i == pipe_number+1)
+    {
+        int j = 0;
+        if (background == 1)
+            return;
+        else
+        {
+            while(1)
+            {
+                if ( waitpid(-1, NULL, WNOHANG) > 0)
+                    j++;
+                if (j == pipe_number+1)
+                    break;
+            }
+        }
+    }
+    k = 0, t = 0;
+    while (k < pipe_number+1)
+    {
+        if (i == k)
+        {
+            int fd = open("pipe.txt", O_CREAT | O_RDWR , 0664);
+            for (t = 0; t < account; ++t)
+            {
+                if (argv[t] == NULL)
+                {
+                    argv[t] = "1";
+                    t++;
+                    break;
+                }
+            }
+            execvp(argv[t], argv+t);
+        }
+        k++;
+    }
+    
+}
+
+//多重管道
 void command_pipe(int account, char (*arg)[256])
 {
     int pipe_number = 0;
@@ -379,7 +451,7 @@ void command_pipe(int account, char (*arg)[256])
             {
                 if ( waitpid(-1, NULL, WNOHANG) > 0)
                     j++;
-                if (j == pipe_number)
+                if (j == pipe_number+1)
                     break;
             }
         }
@@ -610,6 +682,7 @@ void command_pipe(int account, char (*arg)[256])
     }
 }
 
+//单重管道
 /*void command_pipe(int account, char (*arg)[256])
 {
     int i;
@@ -721,7 +794,14 @@ void sys_command(int account, char (*arg)[256])
     }
     for (i = 0; i < account; ++i)
     {
-        argv[i] = arg[i];
+        if ( strcmp(arg[i], "~") == 0)
+        {
+            argv[i] = "/home/cccmmf";
+        }
+        else
+        {
+            argv[i] = arg[i];
+        }
     }
 
     pid_t pid = fork();

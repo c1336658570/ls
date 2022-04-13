@@ -35,6 +35,5 @@ int main(void)
         dup2(pipe_fd[0], STDIN_FILENO);
         execlp("wc", "wc", "-l", NULL);
     }
-
     return 0;
 }
