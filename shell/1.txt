@@ -1,8 +1,0 @@
-ABCDEF
-1.txt
-supershell
-supershell.c
-2
-test_dir
-supershell.h
-lswc.c
