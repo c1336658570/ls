@@ -108,7 +108,7 @@ void do_cmd(int account, char (*arg)[256])
             return;
         }
     }
-    //重定向输出
+    //输出重定向
     for (i = 0; i < account; ++i)
     {
         if ( strcmp(arg[i], ">") == 0 )
@@ -117,7 +117,24 @@ void do_cmd(int account, char (*arg)[256])
             return;
         }
     }
-    //重定向输入
+    //输入重定向
+    for (i = 0; i < account; ++i)
+    {
+        if ( strcmp(arg[i], "<") == 0 )
+        {
+            input_redirect(account, arg);
+            return;
+        }
+    }
+    //追加重定向
+    for (i = 0; i < account; ++i)
+    {
+        if ( strcmp(arg[i], ">>") == 0 )
+        {
+            append_redirect(account, arg);
+            return;
+        }
+    }
 }
 
 void output_redirect(int account, char (*arg)[256])
@@ -140,12 +157,52 @@ void output_redirect(int account, char (*arg)[256])
     }
     else if (pid == 0)
     {
+        i = 0;
+        while (argv[i] != NULL)
+        {
+            i++;
+        }
+        i++;
+        int fd = open(arg[i], O_RDWR|O_CREAT|O_TRUNC, 644);
+        if (fd == -1)
+        {
+            sys_error("open fails");
+        }
+        dup2(fd, STDOUT_FILENO);
+        execvp(argv[0], argv);
+    }
+    else
+    {   
         if (background == 1)
             return;
         else
             wait(NULL);
     }
-    else
+}
+
+void input_redirect(int account, char (*arg)[256])
+{
+    int i;
+    char *argv[50];
+
+    for (i = 0; i < account; ++i)
+    {
+        if ( strcmp(arg[i], "<") == 0 )
+        {
+            argv[i] = NULL;
+        }
+        else
+        {
+            argv[i] = arg[i];
+        }
+    }
+
+    pid_t pid = fork();
+    if (pid < 0)
+    {
+        sys_error("fork fails");
+    }
+    else if (pid == 0)
     {
         i = 0;
         while (argv[i] != NULL)
@@ -153,25 +210,72 @@ void output_redirect(int account, char (*arg)[256])
             i++;
         }
         i++;
-        int fd = open(arg[i], O_RDWR|O_CREAT|O_TRUNC, 777);
+        int fd = open(argv[i], O_RDONLY);
         if (fd == -1)
         {
             sys_error("open fails");
         }
-        sleep(2);
-        dup2(fd, STDOUT_FILENO);
+        dup2(fd, STDIN_FILENO);
         execvp(argv[0], argv);
     }
-}
-
-void input_redirect(int account, char (*arg)[256])
-{
-
+    else
+    {
+        if (background == 1)
+        {
+            return;
+        }
+        else
+        {
+            wait(NULL);
+        }
+    }
 }
 
 void append_redirect(int account, char (*arg)[256])
 {
+    int i;
+    char *argv[50];
 
+    for (i = 0; i < account; ++i)
+    {
+        if ( strcmp(arg[i], ">>") == 0 )
+        {
+            argv[i] = NULL;
+        }
+        else
+        {
+            argv[i] = arg[i];
+        }
+    }
+
+    pid_t pid = fork();
+    if (pid < 0)
+    {
+        sys_error("fork fails");
+    }
+    else if (pid == 0)
+    {
+        i = 0;
+        while (argv[i] != NULL)
+        {
+            i++;
+        }
+        i++;
+        int fd = open(argv[i], O_WRONLY |O_APPEND);
+        if (fd == -1)
+        {
+            sys_error("open fails");
+        }
+        dup2(fd, STDOUT_FILENO);
+        execvp(argv[0], argv);
+    }
+    else
+    {
+        if (background == 1)
+            return;
+        else
+            wait(NULL);
+    }
 }
 
 void command_pipe(int account, char (*arg)[256])
@@ -205,10 +309,6 @@ void command_cd(int account, char (*arg)[256])
     
 }
 
-void Background(int account, char (*arg)[256])
-{
-
-}
 
 void sys_error(char * str)
 {
