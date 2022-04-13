@@ -141,14 +141,22 @@ void do_cmd(int account, char (*arg)[256])
         if ( strcmp(arg[i], "|") == 0 )
         {
             command_pipe(account, arg);
+            return;
         }
     }
+    //识别系统命令
+    sys_command(account, arg);
 }
 
 void output_redirect(int account, char (*arg)[256])
 {
     int i = 0;
     char *argv[50];
+    for (i = 0; i < 50; ++i)
+    {
+        argv[i] = NULL;
+    }
+
     for (i = 0; i < account; ++i)
     {
         argv[i] = arg[i];
@@ -192,6 +200,10 @@ void input_redirect(int account, char (*arg)[256])
 {
     int i;
     char *argv[50];
+    for (i = 0; i < 50; ++i)
+    {
+        argv[i] = NULL;
+    }
 
     for (i = 0; i < account; ++i)
     {
@@ -243,6 +255,10 @@ void append_redirect(int account, char (*arg)[256])
 {
     int i;
     char *argv[50];
+    for (i = 0; i < 50; ++i)
+    {
+        argv[i] = NULL;
+    }
 
     for (i = 0; i < account; ++i)
     {
@@ -288,33 +304,346 @@ void append_redirect(int account, char (*arg)[256])
 
 void command_pipe(int account, char (*arg)[256])
 {
+    int pipe_number = 0;
     int i;
     char *argv[50];
+    for (i = 0; i < 50; ++i)
+    {
+        argv[i] = NULL;
+    }
 
     for (i = 0; i < account; ++i)
     {
         argv[i] = arg[i];
-        if ( strcmp(argv[i], "|") )
+        if ( strcmp(arg[i], "|") == 0 )
         {
             argv[i] = NULL;
+            pipe_number++;
         }
     }
 
     pid_t pid;
-    for (i = 0; i < 2; ++i)
+    int pipe_fd1[2];
+    int pipe_fd2[2];
+    int pipe_fd3[2];
+    int pipe_fd4[2];
+    int pipe_fd5[2];
+    if ( pipe(pipe_fd1) == -1 )
     {
-        pid = fork();
+        sys_error("pipe fails");
+    }
+    if ( pipe(pipe_fd2) == -1 )
+    {
+        sys_error("pipe fails");
+    }
+    if ( pipe(pipe_fd3) == -1 )
+    {
+        sys_error("pipe fails");
+    }
+    if ( pipe(pipe_fd4) == -1 )
+    {
+        sys_error("pipe fails");
+    }
+    if ( pipe(pipe_fd5) == -1 )
+    {
+        sys_error("pipe fails");
+    }
+    for (i = 0; i < pipe_number+1; ++i)
+    {
+        if ( (pid = fork()) == 0) 
+            break;
         if (pid < 0)
         {
             sys_error("fork fails");
         }
     }
 
+    if (i == pipe_number+1)
+    {
+        int j = 0;
+        close(pipe_fd1[0]);
+        close(pipe_fd1[1]);
+        close(pipe_fd2[0]);
+        close(pipe_fd2[1]);
+        close(pipe_fd3[0]);
+        close(pipe_fd3[1]);
+        close(pipe_fd4[0]);
+        close(pipe_fd4[1]);
+        close(pipe_fd5[0]);
+        close(pipe_fd5[1]);
+        if (background == 1)
+            return;
+        else
+        {
+            while(1)
+            {
+                if ( waitpid(-1, NULL, WNOHANG) > 0)
+                    j++;
+                if (j == pipe_number)
+                    break;
+            }
+        }
+    }
+    else if (i == 0 && i < pipe_number)  //子进程0向管道中1写数据
+    {
+        close(pipe_fd1[0]);
+        close(pipe_fd2[0]);
+        close(pipe_fd2[1]);
+        close(pipe_fd3[0]);
+        close(pipe_fd3[1]);
+        close(pipe_fd4[0]);
+        close(pipe_fd4[1]);
+        close(pipe_fd5[0]);
+        close(pipe_fd5[1]);
+        dup2(pipe_fd1[1], STDOUT_FILENO);
+        execvp(argv[0], argv);
+    }
+    else if (i == 1 && i < pipe_number)  //子进程1读子进程0写入管道的，并将子进程1的输出写到管道2
+    {
+        close(pipe_fd1[1]);
+        close(pipe_fd2[0]);
+        close(pipe_fd3[0]);
+        close(pipe_fd3[1]);
+        close(pipe_fd4[0]);
+        close(pipe_fd4[1]);
+        close(pipe_fd5[0]);
+        close(pipe_fd5[1]);
+        dup2(pipe_fd1[0], STDIN_FILENO);
+        dup2(pipe_fd2[1], STDOUT_FILENO);
+        for (i = 0; i < account; ++i)
+        {
+            if (argv[i] == NULL)
+            {
+                argv[i] = "1";
+                break;
+            }
+        }
+        i++;
+        execvp(argv[i],  argv + i);
+    }
+    else if(i == 2 && i < pipe_number) //子进程2读子进程1写入管道的，并将子进程2的输出写入管道3中
+    {
+        close(pipe_fd1[0]);
+        close(pipe_fd1[1]);
+        close(pipe_fd2[1]);
+        close(pipe_fd3[0]);
+        close(pipe_fd4[0]);
+        close(pipe_fd4[1]);
+        close(pipe_fd5[0]);
+        close(pipe_fd5[1]);
+        dup2(pipe_fd2[0], STDIN_FILENO);
+        dup2(pipe_fd3[1], STDOUT_FILENO);
+        for (i = 0; i < account; ++i)
+        {
+            if (argv[i] == NULL)
+            {
+                argv[i] = "1";
+                break;
+            }
+        }
+        i++;
+        execvp(argv[i],  argv + i);
+    }
+    else if(i == 3 && i < pipe_number) //子进程3读子进程2写入管道的，并将子进程3的输出写入管道4中
+    {
+        close(pipe_fd1[0]);
+        close(pipe_fd1[1]);
+        close(pipe_fd2[0]);
+        close(pipe_fd2[1]);
+        close(pipe_fd3[1]);
+        close(pipe_fd4[0]);
+        close(pipe_fd5[0]);
+        close(pipe_fd5[1]);
+        dup2(pipe_fd3[0], STDIN_FILENO);
+        dup2(pipe_fd4[1], STDOUT_FILENO);
+        for (i = 0; i < account; ++i)
+        {
+            if (argv[i] == NULL)
+            {
+                argv[i] = "1";
+                break;
+            }
+        }
+        i++;
+        execvp(argv[i],  argv + i);
+    }
+    else if(i == 4 && i < pipe_number) //子进程4读子进程3写入管道的，并将子进程4的输出写入管道5中
+    {
+        close(pipe_fd1[0]);
+        close(pipe_fd1[1]);
+        close(pipe_fd2[0]);
+        close(pipe_fd2[1]);
+        close(pipe_fd3[0]);
+        close(pipe_fd3[1]);
+        close(pipe_fd4[1]);
+        close(pipe_fd5[0]);
+        dup2(pipe_fd4[0], STDIN_FILENO);
+        dup2(pipe_fd5[1], STDOUT_FILENO);
+        for (i = 0; i < account; ++i)
+        {
+            if (argv[i] == NULL)
+            {
+                argv[i] = "1";
+                break;
+            }
+        }
+        i++;
+        execvp(argv[i],  argv + i);
+    }
+    else
+    {
+        if (i == 1 && i == pipe_number)
+        {
+        close(pipe_fd1[1]);
+        close(pipe_fd2[0]);
+        close(pipe_fd2[1]);
+        close(pipe_fd3[0]);
+        close(pipe_fd3[1]);
+        close(pipe_fd4[0]);
+        close(pipe_fd4[1]);
+        close(pipe_fd5[0]);
+        close(pipe_fd5[1]);
+        dup2(pipe_fd1[0], STDIN_FILENO);
+        for (i = 0; i < account; ++i)
+        {
+            if (argv[i] == NULL)
+            {
+                argv[i] = "1";
+                break;
+            }
+        }
+        i++;
+        execvp(argv[i],  argv + i);
+        }
+        else if (i == 2 && i == pipe_number)
+        {
+        close(pipe_fd1[0]);
+        close(pipe_fd1[1]);
+        close(pipe_fd2[1]);
+        close(pipe_fd3[0]);
+        close(pipe_fd3[1]);
+        close(pipe_fd4[0]);
+        close(pipe_fd4[1]);
+        close(pipe_fd5[0]);
+        close(pipe_fd5[1]);
+        dup2(pipe_fd2[0], STDIN_FILENO);
+        for (i = 0; i < account; ++i)
+        {
+            if (argv[i] == NULL)
+            {
+                argv[i] = "1";
+                break;
+            }
+        }
+        i++;
+        execvp(argv[i],  argv + i);
+        }
+        else if (i == 3 && i == pipe_number)
+        {
+        close(pipe_fd1[0]);
+        close(pipe_fd1[1]);
+        close(pipe_fd2[0]);
+        close(pipe_fd2[1]);
+        close(pipe_fd3[1]);
+        close(pipe_fd4[0]);
+        close(pipe_fd4[1]);
+        close(pipe_fd5[0]);
+        close(pipe_fd5[1]);
+        dup2(pipe_fd3[0], STDIN_FILENO);
+        for (i = 0; i < account; ++i)
+        {
+            if (argv[i] == NULL)
+            {
+                argv[i] = "1";
+                break;
+            }
+        }
+        i++;
+        execvp(argv[i],  argv + i);
+        }
+        else if (i == 4 && i == pipe_number)
+        {
+        close(pipe_fd1[0]);
+        close(pipe_fd1[1]);
+        close(pipe_fd2[0]);
+        close(pipe_fd2[1]);
+        close(pipe_fd3[0]);
+        close(pipe_fd3[1]);
+        close(pipe_fd4[1]);
+        close(pipe_fd5[0]);
+        close(pipe_fd5[1]);
+        dup2(pipe_fd4[0], STDIN_FILENO);
+        for (i = 0; i < account; ++i)
+        {
+            if (argv[i] == NULL)
+            {
+                argv[i] = "1";
+                break;
+            }
+        }
+        i++;
+        execvp(argv[i],  argv + i);
+        }
+        else if (i == 4 && i == pipe_number)
+        {
+        close(pipe_fd1[0]);
+        close(pipe_fd1[1]);
+        close(pipe_fd2[0]);
+        close(pipe_fd2[1]);
+        close(pipe_fd3[0]);
+        close(pipe_fd3[1]);
+        close(pipe_fd4[0]);
+        close(pipe_fd4[1]);
+        close(pipe_fd5[0]);
+        dup2(pipe_fd5[0], STDIN_FILENO);
+        for (i = 0; i < account; ++i)
+        {
+            if (argv[i] == NULL)
+            {
+                argv[i] = "1";
+                break;
+            }
+        }
+        i++;
+        execvp(argv[i],  argv + i);
+        }
+    }
+}
+
+/*void command_pipe(int account, char (*arg)[256])
+{
+    int i;
+    char *argv[50];
+    for (i = 0; i < 50; ++i)
+    {
+        argv[i] = NULL;
+    }
+
+    for (i = 0; i < account; ++i)
+    {
+        argv[i] = arg[i];
+        if ( strcmp(arg[i], "|") == 0 )
+        {
+            argv[i] = NULL;
+        }
+    }
+
+    pid_t pid;
     int pipe_fd[2];
     if ( pipe(pipe_fd) == -1 )
     {
         sys_error("pipe fails");
     }
+    for (i = 0; i < 2; ++i)
+    {
+        if ( (pid = fork()) == 0) 
+            break;
+        if (pid < 0)
+        {
+            sys_error("fork fails");
+        }
+    }
+
     if (i == 0)  //子进程0写
     {
         close(pipe_fd[0]);
@@ -337,19 +666,24 @@ void command_pipe(int account, char (*arg)[256])
     }
     else
     {
+        int j = 0;
         close(pipe_fd[0]);
         close(pipe_fd[1]);
         if (background == 1)
             return;
         else
         {
-            for (i = 0; i < 2; ++i)
+            while(1)
             {
-                wait(NULL);
+                if ( waitpid(-1, NULL, WNOHANG) > 0)
+                    j++;
+                if (j == 2)
+                    break;
             }
         }
     }
 }
+*/
 
 void command_cd(int account, char (*arg)[256])
 {
@@ -375,6 +709,37 @@ void command_cd(int account, char (*arg)[256])
         chdir(arg[1]);
     }
     
+}
+
+void sys_command(int account, char (*arg)[256])
+{
+    int i;
+    char *argv[50];
+    for (i = 0; i < 50; ++i)
+    {
+        argv[i] = NULL;
+    }
+    for (i = 0; i < account; ++i)
+    {
+        argv[i] = arg[i];
+    }
+
+    pid_t pid = fork();
+    if (pid < 0)
+    {
+        sys_error("fork fails");
+    }
+    else if(pid == 0)
+    {
+        execvp(argv[0], argv);
+    }
+    else
+    {
+        if (background == 1)
+            return;
+        else
+            wait(NULL);
+    }
 }
 
 
