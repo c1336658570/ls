@@ -20,6 +20,7 @@ int main(void)
         read_history(NULL);
         buf = readline(NULL);
         add_history(buf);
+        write_history(NULL);
         if (buf[0] == 0)
             printf("\n");
         if ( !strcmp(buf, "exit") )
@@ -46,7 +47,7 @@ void ps1()
     getcwd(path, 256);
     char *name = "cmf-super-shell";
 
-    printf("\033[35m%s\033[0m:\033[31m%s\033[0m$ ", name, path);
+    printf("\001\033[35m\002%s\001\033[0m:\002\001\033[31m\002%s\001\033[0m\002$ ", name, path);
 
     free(path);
 }
