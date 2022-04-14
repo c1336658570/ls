@@ -6,8 +6,6 @@
 屏蔽一些信号（如 ctrl + c 不能终止）
 */
 
-int background;
-
 # include "supershell.h"
 
 int main(void)
@@ -19,6 +17,7 @@ int main(void)
     while (1)
     {
         ps1();
+        read_history(NULL);
         buf = readline(NULL);
         add_history(buf);
         if (buf[0] == 0)
@@ -97,7 +96,9 @@ void do_cmd(int account, char (*arg)[256])
     for (i = 0; i < account; ++i)
     {
         if ( strcmp(arg[i], "&") == 0 )
+        {
             background = 1;
+        }
     }
     //cd命令
     for (i = 0; i < account; ++i)
@@ -140,7 +141,7 @@ void do_cmd(int account, char (*arg)[256])
     {
         if ( strcmp(arg[i], "|") == 0 )
         {
-            command_pipe(account, arg);
+            command_pipe3(account, arg);
             return;
         }
     }
@@ -164,12 +165,16 @@ void output_redirect(int account, char (*arg)[256])
         {
             argv[i] = NULL;
         }
+        if ( strcmp(arg[i], "&") == 0 )
+        {
+            argv[i] = NULL;
+        }
     }
     pid_t pid = fork();
 
     if (pid < 0)
     {
-        sys_error("fork fails");
+        perror("fork fails");
     }
     else if (pid == 0)
     {
@@ -185,7 +190,10 @@ void output_redirect(int account, char (*arg)[256])
             sys_error("open fails");
         }
         dup2(fd, STDOUT_FILENO);
-        execvp(argv[0], argv);
+        if ( execvp(argv[0], argv) == -1)
+        {
+            sys_error("execvp fails");
+        }
     }
     else
     {   
@@ -215,12 +223,16 @@ void input_redirect(int account, char (*arg)[256])
         {
             argv[i] = arg[i];
         }
+        if ( strcmp(arg[i], "&") == 0 )
+        {
+            argv[i] = NULL;
+        }
     }
 
     pid_t pid = fork();
     if (pid < 0)
     {
-        sys_error("fork fails");
+        perror("fork fails");
     }
     else if (pid == 0)
     {
@@ -236,7 +248,10 @@ void input_redirect(int account, char (*arg)[256])
             sys_error("open fails");
         }
         dup2(fd, STDIN_FILENO);
-        execvp(argv[0], argv);
+        if ( execvp(argv[0], argv) == -1)
+        {
+            sys_error("execvp fails");
+        }
     }
     else
     {
@@ -270,12 +285,16 @@ void append_redirect(int account, char (*arg)[256])
         {
             argv[i] = arg[i];
         }
+        if ( strcmp(arg[i], "&") == 0 )
+        {
+            argv[i] = NULL;
+        }
     }
 
     pid_t pid = fork();
     if (pid < 0)
     {
-        sys_error("fork fails");
+        perror("fork fails");
     }
     else if (pid == 0)
     {
@@ -291,7 +310,10 @@ void append_redirect(int account, char (*arg)[256])
             sys_error("open fails");
         }
         dup2(fd, STDOUT_FILENO);
-        execvp(argv[0], argv);
+        if ( execvp(argv[0], argv) == -1)
+        {
+            sys_error("execvp fails");
+        }
     }
     else
     {
@@ -302,79 +324,147 @@ void append_redirect(int account, char (*arg)[256])
     }
 }
 
-//文件实现管道
-void file_pipe(int account, char (*arg)[256])
+//多重管道2
+void command_pipe3(int account, char (*arg)[256])
 {
-    int i, pipe_number = 0;
+    int pipe_number = 0;
+    int i, j;
     char *argv[50];
-    int k = 0, t = 0;
-
     for (i = 0; i < 50; ++i)
     {
         argv[i] = NULL;
     }
+
     for (i = 0; i < account; ++i)
     {
         argv[i] = arg[i];
-        if ( strcmp(argv[i], "|") )
+        if ( strcmp(arg[i], "|") == 0 )
         {
+            argv[i] = NULL;
             pipe_number++;
+        }
+        if ( strcmp(arg[i], "&") == 0 )
+        {
             argv[i] = NULL;
         }
     }
 
     pid_t pid;
+    int pipe_fd[50][2];
+
+    //循环创建"|"数个匿名管道
+    for (i = 0; i < pipe_number; ++i)
+    {
+        if ( pipe(pipe_fd[i]) == -1 )
+            perror("pipe fails");
+    }
+
+    //循环创建"|"数加1个子进程
     for (i = 0; i < pipe_number+1; ++i)
     {
-        if ( ( pid = fork() ) == 0 )
-        {
+        if ( (pid = fork()) == 0 )
             break;
-        }
-        if (pid < 0)
+        if (pid == -1)
         {
-            sys_error("fork fails");
+            perror("fork fails");
+            return;
         }
     }
+
     if (i == pipe_number+1)
     {
-        int j = 0;
+        for (j = 0; j < pipe_number; ++j)
+        {
+            close(pipe_fd[j][0]);
+            close(pipe_fd[j][1]);
+        }
         if (background == 1)
+        {
             return;
+        }
         else
         {
-            while(1)
+            for (j = 0; j < pipe_number+1; ++j)
             {
-                if ( waitpid(-1, NULL, WNOHANG) > 0)
-                    j++;
-                if (j == pipe_number+1)
-                    break;
+                wait(NULL);
             }
         }
     }
-    k = 0, t = 0;
-    while (k < pipe_number+1)
+    else
     {
-        if (i == k)
+        if (i == 0)
         {
-            int fd = open("pipe.txt", O_CREAT | O_RDWR , 0664);
-            for (t = 0; t < account; ++t)
+            close(pipe_fd[0][0]);
+            dup2(pipe_fd[0][1], STDOUT_FILENO);
+            for (j = 1; j < pipe_number; ++j)
             {
-                if (argv[t] == NULL)
+                close(pipe_fd[j][0]);
+                close(pipe_fd[j][1]);
+            }
+            execvp(argv[0], argv);
+            close(pipe_fd[0][1]);
+            sys_error("execvp fails");
+        }
+        else if (i == pipe_number)
+        {
+            
+            close(pipe_fd[pipe_number-1][1]);
+            dup2(pipe_fd[pipe_number-1][0], STDIN_FILENO);
+            for (j = 0; j < pipe_number-1; ++j)
+            {
+                close(pipe_fd[j][0]);
+                close(pipe_fd[j][1]);
+            }
+            for (j = 0; j < account; ++j)
+            {
+                if (argv[j] == NULL)
                 {
-                    argv[t] = "1";
-                    t++;
+                    argv[j] = "1";
                     break;
                 }
             }
-            execvp(argv[t], argv+t);
+            j++;
+            execvp(argv[j], argv+j);
+            close(pipe_fd[pipe_number-1][0]);
+            sys_error("execvp fails");
         }
-        k++;
+        else
+        {
+            
+            close(pipe_fd[i-1][1]);
+            close(pipe_fd[i][0]);
+            dup2(pipe_fd[i-1][0], STDIN_FILENO);
+            dup2(pipe_fd[i][1], STDOUT_FILENO);
+            for (j = 0; j < pipe_number; ++j)
+            {
+                if (j == i-1 | j == i)
+                {
+                    continue;
+                }
+                close(pipe_fd[j][0]);
+                close(pipe_fd[j][1]);
+            }
+            for (j = 0; j < account; ++j)
+            {
+                if (argv[j] == NULL)
+                {
+                    argv[j] = "1";
+                    break;
+                }
+            }
+            j++;
+            execvp(argv[j], argv+j);
+            close(pipe_fd[i-1][0]);
+            close(pipe_fd[i][1]);
+            sys_error("execvp fails");
+        }
+
     }
-    
 }
 
-//多重管道
-void command_pipe(int account, char (*arg)[256])
+//多重管道1
+
+void command_pipe2(int account, char (*arg)[256])
 {
     int pipe_number = 0;
     int i;
@@ -391,6 +481,10 @@ void command_pipe(int account, char (*arg)[256])
         {
             argv[i] = NULL;
             pipe_number++;
+        }
+        if ( strcmp(arg[i], "&") == 0 )
+        {
+            argv[i] = NULL;
         }
     }
 
@@ -426,7 +520,7 @@ void command_pipe(int account, char (*arg)[256])
             break;
         if (pid < 0)
         {
-            sys_error("fork fails");
+            perror("fork fails");
         }
     }
 
@@ -468,7 +562,11 @@ void command_pipe(int account, char (*arg)[256])
         close(pipe_fd5[0]);
         close(pipe_fd5[1]);
         dup2(pipe_fd1[1], STDOUT_FILENO);
-        execvp(argv[0], argv);
+        if ( execvp(argv[0], argv) == -1)
+        {
+            close(pipe_fd1[1]);
+            sys_error("execvp fails");
+        }
     }
     else if (i == 1 && i < pipe_number)  //子进程1读子进程0写入管道的，并将子进程1的输出写到管道2
     {
@@ -491,7 +589,12 @@ void command_pipe(int account, char (*arg)[256])
             }
         }
         i++;
-        execvp(argv[i],  argv + i);
+        if ( execvp(argv[i],  argv + i) == -1 )
+        {
+            close(pipe_fd1[0]);
+            close(pipe_fd2[1]);
+            sys_error("execvp fails");
+        }
     }
     else if(i == 2 && i < pipe_number) //子进程2读子进程1写入管道的，并将子进程2的输出写入管道3中
     {
@@ -514,7 +617,12 @@ void command_pipe(int account, char (*arg)[256])
             }
         }
         i++;
-        execvp(argv[i],  argv + i);
+        if ( execvp(argv[i],  argv + i) == -1 )
+        {
+            close(pipe_fd2[0]);
+            close(pipe_fd3[1]);
+            sys_error("execvp fails");
+        }
     }
     else if(i == 3 && i < pipe_number) //子进程3读子进程2写入管道的，并将子进程3的输出写入管道4中
     {
@@ -537,7 +645,12 @@ void command_pipe(int account, char (*arg)[256])
             }
         }
         i++;
-        execvp(argv[i],  argv + i);
+        if ( execvp(argv[i],  argv + i) == -1 )
+        {
+            close(pipe_fd3[0]);
+            close(pipe_fd4[1]);
+            sys_error("execvp fails");
+        }
     }
     else if(i == 4 && i < pipe_number) //子进程4读子进程3写入管道的，并将子进程4的输出写入管道5中
     {
@@ -560,130 +673,154 @@ void command_pipe(int account, char (*arg)[256])
             }
         }
         i++;
-        execvp(argv[i],  argv + i);
+        if ( execvp(argv[i],  argv + i) == -1 )
+        {
+            close(pipe_fd4[0]);
+            close(pipe_fd5[1]);
+            sys_error("execvp fails");
+        }
     }
     else
     {
         if (i == 1 && i == pipe_number)
         {
-        close(pipe_fd1[1]);
-        close(pipe_fd2[0]);
-        close(pipe_fd2[1]);
-        close(pipe_fd3[0]);
-        close(pipe_fd3[1]);
-        close(pipe_fd4[0]);
-        close(pipe_fd4[1]);
-        close(pipe_fd5[0]);
-        close(pipe_fd5[1]);
-        dup2(pipe_fd1[0], STDIN_FILENO);
-        for (i = 0; i < account; ++i)
-        {
-            if (argv[i] == NULL)
+            close(pipe_fd1[1]);
+            close(pipe_fd2[0]);
+            close(pipe_fd2[1]);
+            close(pipe_fd3[0]);
+            close(pipe_fd3[1]);
+            close(pipe_fd4[0]);
+            close(pipe_fd4[1]);
+            close(pipe_fd5[0]);
+            close(pipe_fd5[1]);
+            dup2(pipe_fd1[0], STDIN_FILENO);
+            for (i = 0; i < account; ++i)
             {
-                argv[i] = "1";
-                break;
+                if (argv[i] == NULL)
+                {
+                    argv[i] = "1";
+                    break;
+                }
             }
-        }
-        i++;
-        execvp(argv[i],  argv + i);
+            i++;
+            if ( execvp(argv[i],  argv + i) == -1 )
+            {
+                close(pipe_fd1[0]);
+                sys_error("execvp fails");
+            }
         }
         else if (i == 2 && i == pipe_number)
         {
-        close(pipe_fd1[0]);
-        close(pipe_fd1[1]);
-        close(pipe_fd2[1]);
-        close(pipe_fd3[0]);
-        close(pipe_fd3[1]);
-        close(pipe_fd4[0]);
-        close(pipe_fd4[1]);
-        close(pipe_fd5[0]);
-        close(pipe_fd5[1]);
-        dup2(pipe_fd2[0], STDIN_FILENO);
-        for (i = 0; i < account; ++i)
-        {
-            if (argv[i] == NULL)
+            close(pipe_fd1[0]);
+            close(pipe_fd1[1]);
+            close(pipe_fd2[1]);
+            close(pipe_fd3[0]);
+            close(pipe_fd3[1]);
+            close(pipe_fd4[0]);
+            close(pipe_fd4[1]);
+            close(pipe_fd5[0]);
+            close(pipe_fd5[1]);
+            dup2(pipe_fd2[0], STDIN_FILENO);
+            for (i = 0; i < account; ++i)
             {
-                argv[i] = "1";
-                break;
+                if (argv[i] == NULL)
+                {
+                    argv[i] = "1";
+                    break;
+                }
             }
-        }
-        i++;
-        execvp(argv[i],  argv + i);
+            i++;
+            if ( execvp(argv[i],  argv + i) == -1 )
+            {
+                close(pipe_fd2[0]);
+                sys_error("execvp fails");
+            }
         }
         else if (i == 3 && i == pipe_number)
         {
-        close(pipe_fd1[0]);
-        close(pipe_fd1[1]);
-        close(pipe_fd2[0]);
-        close(pipe_fd2[1]);
-        close(pipe_fd3[1]);
-        close(pipe_fd4[0]);
-        close(pipe_fd4[1]);
-        close(pipe_fd5[0]);
-        close(pipe_fd5[1]);
-        dup2(pipe_fd3[0], STDIN_FILENO);
-        for (i = 0; i < account; ++i)
-        {
-            if (argv[i] == NULL)
+            close(pipe_fd1[0]);
+            close(pipe_fd1[1]);
+            close(pipe_fd2[0]);
+            close(pipe_fd2[1]);
+            close(pipe_fd3[1]);
+            close(pipe_fd4[0]);
+            close(pipe_fd4[1]);
+            close(pipe_fd5[0]);
+            close(pipe_fd5[1]);
+            dup2(pipe_fd3[0], STDIN_FILENO);
+            for (i = 0; i < account; ++i)
             {
-                argv[i] = "1";
-                break;
+                if (argv[i] == NULL)
+                {
+                    argv[i] = "1";
+                    break;
+                }
             }
-        }
-        i++;
-        execvp(argv[i],  argv + i);
+            i++;
+            if ( execvp(argv[i],  argv + i) == -1 )
+            {
+                close(pipe_fd3[0]);
+            }
         }
         else if (i == 4 && i == pipe_number)
         {
-        close(pipe_fd1[0]);
-        close(pipe_fd1[1]);
-        close(pipe_fd2[0]);
-        close(pipe_fd2[1]);
-        close(pipe_fd3[0]);
-        close(pipe_fd3[1]);
-        close(pipe_fd4[1]);
-        close(pipe_fd5[0]);
-        close(pipe_fd5[1]);
-        dup2(pipe_fd4[0], STDIN_FILENO);
-        for (i = 0; i < account; ++i)
-        {
-            if (argv[i] == NULL)
+            close(pipe_fd1[0]);
+            close(pipe_fd1[1]);
+            close(pipe_fd2[0]);
+            close(pipe_fd2[1]);
+            close(pipe_fd3[0]);
+            close(pipe_fd3[1]);
+            close(pipe_fd4[1]);
+            close(pipe_fd5[0]);
+            close(pipe_fd5[1]);
+            dup2(pipe_fd4[0], STDIN_FILENO);
+            for (i = 0; i < account; ++i)
             {
-                argv[i] = "1";
-                break;
+                if (argv[i] == NULL)
+                {
+                    argv[i] = "1";
+                    break;
+                }
             }
-        }
-        i++;
-        execvp(argv[i],  argv + i);
+            i++;
+            if ( execvp(argv[i],  argv + i) == -1 )
+            {
+                close(pipe_fd4[0]);
+                sys_error("execvp fails");
+            }
         }
         else if (i == 4 && i == pipe_number)
         {
-        close(pipe_fd1[0]);
-        close(pipe_fd1[1]);
-        close(pipe_fd2[0]);
-        close(pipe_fd2[1]);
-        close(pipe_fd3[0]);
-        close(pipe_fd3[1]);
-        close(pipe_fd4[0]);
-        close(pipe_fd4[1]);
-        close(pipe_fd5[0]);
-        dup2(pipe_fd5[0], STDIN_FILENO);
-        for (i = 0; i < account; ++i)
-        {
-            if (argv[i] == NULL)
+            close(pipe_fd1[0]);
+            close(pipe_fd1[1]);
+            close(pipe_fd2[0]);
+            close(pipe_fd2[1]);
+            close(pipe_fd3[0]);
+            close(pipe_fd3[1]);
+            close(pipe_fd4[0]);
+            close(pipe_fd4[1]);
+            close(pipe_fd5[0]);
+            dup2(pipe_fd5[0], STDIN_FILENO);
+            for (i = 0; i < account; ++i)
             {
-                argv[i] = "1";
-                break;
+                if (argv[i] == NULL)
+                {
+                    argv[i] = "1";
+                    break;
+                }
             }
-        }
-        i++;
-        execvp(argv[i],  argv + i);
+            i++;
+            if ( execvp(argv[i],  argv + i) == -1 )
+            {
+                close(pipe_fd5[0]);
+                sys_error("execvp fails");
+            }
         }
     }
 }
 
-//单重管道
-/*void command_pipe(int account, char (*arg)[256])
+//单重管道1
+void command_pipe1(int account, char (*arg)[256])
 {
     int i;
     char *argv[50];
@@ -699,13 +836,17 @@ void command_pipe(int account, char (*arg)[256])
         {
             argv[i] = NULL;
         }
+        if ( strcmp(arg[i], "&") == 0 )
+        {
+            argv[i] = NULL;
+        }
     }
 
     pid_t pid;
     int pipe_fd[2];
     if ( pipe(pipe_fd) == -1 )
     {
-        sys_error("pipe fails");
+        perror("pipe fails");
     }
     for (i = 0; i < 2; ++i)
     {
@@ -713,7 +854,7 @@ void command_pipe(int account, char (*arg)[256])
             break;
         if (pid < 0)
         {
-            sys_error("fork fails");
+            perror("fork fails");
         }
     }
 
@@ -722,6 +863,7 @@ void command_pipe(int account, char (*arg)[256])
         close(pipe_fd[0]);
         dup2(pipe_fd[1], STDOUT_FILENO);
         execvp(argv[0], argv);
+        sys_error("execvp fails");
     }
     else if (i == 1)  //子进程1读
     {
@@ -736,6 +878,7 @@ void command_pipe(int account, char (*arg)[256])
         }
         i++;
         execvp(argv[i],  argv + i);
+        sys_error("execvp fails");
     }
     else
     {
@@ -756,7 +899,6 @@ void command_pipe(int account, char (*arg)[256])
         }
     }
 }
-*/
 
 void command_cd(int account, char (*arg)[256])
 {
@@ -770,16 +912,19 @@ void command_cd(int account, char (*arg)[256])
     
     if ( strcmp(arg[1], "~") == 0 )
     {
-        chdir("/home/cccmmf");
+        if ( chdir("/home/cccmmf") == -1)
+            perror("cd fails");
     }
     else if ( strcmp(arg[1], "-") == 0 )
     {
-        chdir (old_cd);
+        if ( chdir (old_cd) == -1 )
+            perror("cd fails");
         strcpy(old_cd, oold_cd);
     }
     else
     {
-        chdir(arg[1]);
+        if( chdir(arg[1]) == -1 )
+            perror("cd fails");
     }
     
 }
@@ -807,11 +952,14 @@ void sys_command(int account, char (*arg)[256])
     pid_t pid = fork();
     if (pid < 0)
     {
-        sys_error("fork fails");
+        perror("fork fails");
     }
     else if(pid == 0)
     {
-        execvp(argv[0], argv);
+        if ( execvp(argv[0],  argv) == -1 )
+        {
+            sys_error("execvp fails");
+        }
     }
     else
     {
@@ -821,7 +969,6 @@ void sys_command(int account, char (*arg)[256])
             wait(NULL);
     }
 }
-
 
 void sys_error(char * str)
 {
