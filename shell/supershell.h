@@ -12,6 +12,7 @@
 # include <sys/types.h>
 # include <fcntl.h>
 # include <sys/wait.h>
+# include <signal.h>
 
 void ps1(); //输出终端前缀信息
 void command_parsing(char *buf, char (*arg)[256], int *commandsize); //命令解析
@@ -25,5 +26,6 @@ void append_redirect(int account, char (*arg)[256]);  //追加重定向
 void sys_command(int account, char (*arg)[256]);  //系统内置命令
 void command_cd(int account, char (*arg)[256]);  //cd
 void sys_error(char * str);  //错误处理
+void shield_signal(sigset_t sig); //信号屏蔽
 
 int background;

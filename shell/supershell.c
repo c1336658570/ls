@@ -13,6 +13,8 @@ int main(void)
     int account, i;
     char *buf;
     char argvlist[50][256];
+    sigset_t sig;
+    shield_signal(sig);
 
     while (1)
     {
@@ -975,4 +977,10 @@ void sys_error(char * str)
 {
     perror(str);
     exit(-1);
+}
+
+void shield_signal(sigset_t sig)
+{
+    sigfillset(&sig);
+    sigprocmask(SIG_BLOCK,&sig,NULL);
 }
