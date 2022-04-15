@@ -526,7 +526,8 @@ void command_pipe3(int account, char (*arg)[256])
                 close(pipe_fd[j][1]);
             }
             execvp(argv[0], argv);
-            close(pipe_fd[0][1]);
+            close(STDIN_FILENO);
+            close(STDOUT_FILENO);
             sys_error("execvp fails");
         }
         else if (i == pipe_number)
@@ -565,7 +566,8 @@ void command_pipe3(int account, char (*arg)[256])
             }
             j++;
             execvp(argv[j], argv+j);
-            close(pipe_fd[pipe_number-1][0]);
+            close(STDIN_FILENO);
+            close(STDOUT_FILENO);
             sys_error("execvp fails");
         }
         else
@@ -594,8 +596,8 @@ void command_pipe3(int account, char (*arg)[256])
             }
             j++;
             execvp(argv[j], argv+j);
-            close(pipe_fd[i-1][0]);
-            close(pipe_fd[i][1]);
+            close(STDIN_FILENO);
+            close(STDOUT_FILENO);
             sys_error("execvp fails");
         }
 
