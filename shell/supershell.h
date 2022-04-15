@@ -20,6 +20,7 @@ void do_cmd(int account, char (*arg)[256]);  //执行命令
 void command_pipe1(int account, char (*arg)[256]);  //管道版本1
 void command_pipe2(int account, char (*arg)[256]);  //管道版本2
 void command_pipe3(int account, char (*arg)[256]);  //管道版本3
+void out_in_append(int account, char (*arg)[256]); //混合重定向
 void input_redirect(int account, char (*arg)[256]);  //输入重定向
 void output_redirect(int account, char (*arg)[256]);  //输出重定向
 void append_redirect(int account, char (*arg)[256]);  //追加重定向

@@ -119,6 +119,18 @@ void do_cmd(int account, char (*arg)[256])
             return;
         }
     }
+
+    //重定向
+    for (i = 0; i < account; ++i)
+    {
+        if ( strcmp(arg[i], ">") == 0 || strcmp(arg[i], "<") == 0 || strcmp(arg[i], ">>") == 0 )
+        {
+            out_in_append(account, arg);
+            return;
+        }
+    }
+
+    /*
     //输出重定向
     for (i = 0; i < account; ++i)
     {
@@ -146,8 +158,89 @@ void do_cmd(int account, char (*arg)[256])
             return;
         }
     }
+    */
     //识别系统命令
     sys_command(account, arg);
+}
+
+//重定向
+void out_in_append(int account, char (*arg)[256])
+{
+    int i, j = 0;
+    char *argv[50];
+    char *input = NULL, *output = NULL, *append = NULL;
+
+    for (i = 0; i < 50; ++i)
+    {
+        argv[i] = NULL;
+    }
+    for (i = 0, j = 0; i < account; ++i)
+    {
+        argv[j] = arg[i];
+        if ( strcmp(arg[i], "<") == 0 )
+        {
+            input = arg[i+1];
+            argv[j] = NULL;
+            j--;
+            ++i;
+        }
+        if ( strcmp(arg[i], ">") == 0 )
+        {
+            output = arg[i+1];
+            argv[j] = NULL;
+            j--;
+            ++i;
+        }
+        if ( strcmp(arg[i], ">>") == 0 )
+        {
+            append = arg[i+1];
+            argv[j] = NULL;
+            j--;
+            i++;
+        }
+        j++;
+    }
+
+    pid_t pid = fork();
+    if (pid < 0)
+    {
+        perror("fork fails");
+    }
+    else if (pid > 0)
+    {
+        if (background == 1)
+        {
+            return;
+        }
+        else
+        {
+            wait(NULL);
+        }
+    }
+    else
+    {
+        int fd_in, fd_out, fd_append;
+        if (input != NULL)
+        {
+            if ( fd_in = open(input, O_RDONLY) == -1)
+                sys_error("open fails");
+            dup2(fd_in, STDIN_FILENO);
+        }
+        if (output != NULL)
+        {
+            if ( ( fd_out = open(output, O_WRONLY|O_CREAT|O_TRUNC, 0644) ) == -1)
+                sys_error("open fails");
+            dup2(fd_out, STDOUT_FILENO);
+        }
+        if (append != NULL)
+        {
+            if ( ( fd_out = open(append, O_WRONLY) ) == -1 )
+                sys_error("open fails");
+            dup2(fd_out, STDOUT_FILENO);
+        }
+        execvp(argv[0], argv);
+    }
+
 }
 
 void output_redirect(int account, char (*arg)[256])
