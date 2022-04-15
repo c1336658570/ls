@@ -332,45 +332,24 @@ void command_pipe3(int account, char (*arg)[256])
 {
     int pipe_number = 0;
     int i, j;
-    char *input = NULL, *output = NULL, *append = NULL;
     char *argv[50];
     for (i = 0; i < 50; ++i)
     {
         argv[i] = NULL;
     }
 
-    j = 0;
     for (i = 0; i < account; ++i)
     {
-        argv[j] = arg[i];
+        argv[i] = arg[i];
         if ( strcmp(arg[i], "|") == 0 )
         {
-            argv[j] = NULL;
+            argv[i] = NULL;
             pipe_number++;
         }
         if ( strcmp(arg[i], "&") == 0 )
         {
-            argv[j] = NULL;
+            argv[i] = NULL;
         }
-        if ( strcmp(arg[i], "<") == 0 )
-        {
-            input = arg[i+1];
-            j--;
-            i++;
-        }
-        if ( strcmp(arg[i], ">") == 0 )
-        {
-            output = arg[i+1];
-            argv[j] = NULL;
-            break;
-        }
-        if ( strcmp(arg[i], ">>") == 0 )
-        {
-            append = arg[i+1];
-            argv[j] = NULL;
-            break;
-        }
-        j++;
     }
 
     pid_t pid;
@@ -418,15 +397,6 @@ void command_pipe3(int account, char (*arg)[256])
     {
         if (i == 0)
         {
-            int fd = -1;
-            if (input != NULL)
-            {
-                if ( (fd = open(input, O_RDONLY) ) == -1 )
-                {
-                    sys_error("open fails");
-                }
-                dup2(fd, STDIN_FILENO);
-            }
             close(pipe_fd[0][0]);
             dup2(pipe_fd[0][1], STDOUT_FILENO);
             for (j = 1; j < pipe_number; ++j)
@@ -440,23 +410,7 @@ void command_pipe3(int account, char (*arg)[256])
         }
         else if (i == pipe_number)
         {
-            int fd = -1;
-            if (output != NULL)
-            {
-                if ( (fd = open(output, O_WRONLY|O_CREAT|O_TRUNC, 0644) ) == -1 )
-                {
-                    sys_error("open fails");
-                }
-                dup2(fd, STDOUT_FILENO);
-            }
-            else if (append != NULL)
-            {
-                if ( (fd = open(append, O_WRONLY|O_APPEND) ) == -1 )
-                {
-                    sys_error("open fails");
-                }
-                dup2(fd, STDOUT_FILENO);
-            }
+            
             close(pipe_fd[pipe_number-1][1]);
             dup2(pipe_fd[pipe_number-1][0], STDIN_FILENO);
             for (j = 0; j < pipe_number-1; ++j)
@@ -1029,4 +983,4 @@ void shield_signal(sigset_t sig)
 {
     sigfillset(&sig);
     sigprocmask(SIG_BLOCK,&sig,NULL);
-}
+}c
