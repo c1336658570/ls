@@ -19,10 +19,8 @@ int main(void)
     while (1)
     {
         ps1();
-        read_history(NULL);
         buf = readline(NULL);
         add_history(buf);
-        write_history(NULL);
         if (buf[0] == 0)
             printf("\n");
         if ( !strcmp(buf, "exit") )
@@ -387,9 +385,12 @@ void command_pipe3(int account, char (*arg)[256])
         }
         else
         {
-            for (j = 0; j < pipe_number+1; ++j)
+            while (1)
             {
-                wait(NULL);
+                if ( waitpid(-1, NULL, WNOHANG) > 0 )
+                    j++;
+                if (j == pipe_number+1)
+                    break;
             }
         }
     }
@@ -983,4 +984,4 @@ void shield_signal(sigset_t sig)
 {
     sigfillset(&sig);
     sigprocmask(SIG_BLOCK,&sig,NULL);
-}c
+}

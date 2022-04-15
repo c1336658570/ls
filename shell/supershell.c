@@ -19,10 +19,8 @@ int main(void)
     while (1)
     {
         ps1();
-        read_history(NULL);
         buf = readline(NULL);
         add_history(buf);
-        write_history(NULL);
         if (buf[0] == 0)
             printf("\n");
         if ( !strcmp(buf, "exit") )
@@ -112,6 +110,15 @@ void do_cmd(int account, char (*arg)[256])
             return;
         }
     }
+    //管道
+    for (i = 0; i < account; ++i)
+    {
+        if ( strcmp(arg[i], "|") == 0 )
+        {
+            command_pipe3(account, arg);
+            return;
+        }
+    }
     //输出重定向
     for (i = 0; i < account; ++i)
     {
@@ -136,15 +143,6 @@ void do_cmd(int account, char (*arg)[256])
         if ( strcmp(arg[i], ">>") == 0 )
         {
             append_redirect(account, arg);
-            return;
-        }
-    }
-    //管道
-    for (i = 0; i < account; ++i)
-    {
-        if ( strcmp(arg[i], "|") == 0 )
-        {
-            command_pipe3(account, arg);
             return;
         }
     }
