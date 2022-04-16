@@ -13,6 +13,7 @@
         "errno.h": "c",
         "time.h": "c",
         "stdio.h": "c",
-        "supershell.h": "c"
+        "supershell.h": "c",
+        "history.h": "c"
     }
 }
