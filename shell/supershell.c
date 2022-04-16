@@ -234,9 +234,9 @@ void out_in_append(int account, char (*arg)[256])
         }
         if (append != NULL)
         {
-            if ( ( fd_out = open(append, O_WRONLY) ) == -1 )
+            if ( ( fd_append = open(append, O_WRONLY) ) == -1 )
                 sys_error("open fails");
-            dup2(fd_out, STDOUT_FILENO);
+            dup2(fd_append, STDOUT_FILENO);
         }
         execvp(argv[0], argv);
     }
