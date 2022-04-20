@@ -52,7 +52,6 @@ void ps1()
     free(path);
 }
 
-
 void command_parsing(char *buf, char (*arg)[256], int *commandsize)
 {
     int number = 0, i;
@@ -467,7 +466,6 @@ void command_pipe3(int account, char (*arg)[256])
 }
 
 //多重管道1
-
 void command_pipe2(int account, char (*arg)[256])
 {
     int pipe_number = 0;
