@@ -4,6 +4,6 @@
 !*.cxx
 !*.cc
 !*.h
-!makefile
 !Makefile
+!makefile
 !.gitignore
