@@ -22,6 +22,8 @@ void SPSCQueueDestory(SPSCQueue *);
 // Multi-producer , Multi-consumer Queue
 struct MPMCQueue
 {
+    int num;
+    struct MPMCQueue *next;
     /* Define Your Data Here */
 } typedef MPMCQueue;
 
