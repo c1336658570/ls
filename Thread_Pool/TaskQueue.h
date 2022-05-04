@@ -1,10 +1,19 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
+#include <time.h>
+#include <unistd.h>
+
 // Single-producer , single-consumer Queue
 struct SPSCQueue
 {
+    int num;
+    struct SPSCQueue *next;
     /* Define Your Data Here */
 
 } typedef SPSCQueue;
-;
+
 SPSCQueue *SPSCQueueInit();
 void SPSCQueuePush(SPSCQueue *pool, void *s);
 void *SPSCQueuePop(SPSCQueue *pool);
