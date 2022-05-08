@@ -6,7 +6,7 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void perr_exit(const char *str, int erron)
 {
-    fprintf("%s:%s\n", str, strerror(erron));
+    fprintf(stderr, "%s:%s\n", str, strerror(erron));
     exit(-1);
 }
 
