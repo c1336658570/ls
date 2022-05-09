@@ -17,6 +17,8 @@
     "history.h": "c",
     "semaphore.h": "c",
     "taskqueue.h": "c",
-    "pthread.h": "c"
+    "pthread.h": "c",
+    "threadpool.h": "c",
+    "philosopher.h": "c"
   }
 }

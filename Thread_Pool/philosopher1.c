@@ -64,6 +64,7 @@ int main(void)
     {
         sem_destroy(&chopsticks[i]);
     }
+    pthread_mutex_destroy(&mutex);
 
     return 0;
 }
