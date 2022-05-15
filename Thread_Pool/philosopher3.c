@@ -42,7 +42,7 @@ void *philosopher2(void *arg)
 
     while (1)
     {
-        if (count >= 4)
+        while (count >= 4)
         {
             sleep(rand() % 5);
         }

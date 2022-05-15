@@ -2,7 +2,6 @@
 
 sem_t chopsticks[N];
 int philosophers[N];
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void perr_exit(const char *str, int erron)
 {
@@ -17,7 +16,6 @@ void *philosopher1(void *arg)
     int number = *(int *)arg;
     while (1)
     {
-        pthread_mutex_lock(&mutex);
         if (number % 2 == 0)
         {
             sem_wait(&chopsticks[(number + 1) % N]);
@@ -34,7 +32,6 @@ void *philosopher1(void *arg)
             sem_post(&chopsticks[number]);
             sem_post(&chopsticks[(number + 1) % N]);
         }
-        pthread_mutex_unlock(&mutex);
         sleep(rand() % 5);
     }
 
@@ -64,7 +61,6 @@ int main(void)
     {
         sem_destroy(&chopsticks[i]);
     }
-    pthread_mutex_destroy(&mutex);
 
     return 0;
 }

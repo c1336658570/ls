@@ -1,7 +1,6 @@
 #include "philosopher.h"
 
 pthread_mutex_t chopsticks[N];
-pthread_mutex_t mutex;
 int philosophers[N];
 
 int main(void)
@@ -31,7 +30,6 @@ int main(void)
     {
         pthread_mutex_destroy(&chopsticks[i]);
     }
-    pthread_mutex_destroy(&mutex);
 
     return 0;
 }
@@ -43,7 +41,6 @@ void *philosopher2(void *arg)
 
     while (1)
     {
-        pthread_mutex_lock(&mutex);
         if (!pthread_mutex_trylock(&chopsticks[number]))
         {
             if (!pthread_mutex_trylock(&chopsticks[(number + 1) % N]))
@@ -58,7 +55,6 @@ void *philosopher2(void *arg)
                 pthread_mutex_unlock(&chopsticks[number]);
             }
         }
-        pthread_mutex_unlock(&mutex);
         sleep(rand() % 5);
     }
 
