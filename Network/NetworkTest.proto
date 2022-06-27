@@ -1,0 +1,18 @@
+syntax = "proto3";
+package NetworkTest;
+
+message Register {
+    bytes content = 2;
+}
+message Query {
+    uint32 id = 1;
+}
+message Result {
+    uint32 id = 1;
+    uint32 reason = 2;
+}
+
+service NT {
+    rpc AnswerRegister(Register) returns (Result) {}
+    rpc ResultQuery(Query) returns (Result) {}
+}

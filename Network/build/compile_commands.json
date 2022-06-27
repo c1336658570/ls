@@ -1,0 +1,32 @@
+[
+{
+  "directory": "/home/cccmmf/Exercise/Network/build",
+  "command": "/usr/bin/g++ -DCARES_STATICLIB -I/home/cccmmf/Exercise/Network  -O2 -g  -std=gnu++17 -o CMakeFiles/client.out.dir/NetworkTest.grpc.pb.cc.o -c /home/cccmmf/Exercise/Network/NetworkTest.grpc.pb.cc",
+  "file": "/home/cccmmf/Exercise/Network/NetworkTest.grpc.pb.cc"
+},
+{
+  "directory": "/home/cccmmf/Exercise/Network/build",
+  "command": "/usr/bin/g++ -DCARES_STATICLIB -I/home/cccmmf/Exercise/Network  -O2 -g  -std=gnu++17 -o CMakeFiles/client.out.dir/NetworkTest.pb.cc.o -c /home/cccmmf/Exercise/Network/NetworkTest.pb.cc",
+  "file": "/home/cccmmf/Exercise/Network/NetworkTest.pb.cc"
+},
+{
+  "directory": "/home/cccmmf/Exercise/Network/build",
+  "command": "/usr/bin/g++ -DCARES_STATICLIB -I/home/cccmmf/Exercise/Network  -O2 -g  -std=gnu++17 -o CMakeFiles/client.out.dir/test_client.cpp.o -c /home/cccmmf/Exercise/Network/test_client.cpp",
+  "file": "/home/cccmmf/Exercise/Network/test_client.cpp"
+},
+{
+  "directory": "/home/cccmmf/Exercise/Network/build",
+  "command": "/usr/bin/g++ -DCARES_STATICLIB -I/home/cccmmf/Exercise/Network  -O2 -g  -std=gnu++17 -o CMakeFiles/server.out.dir/NetworkTest.grpc.pb.cc.o -c /home/cccmmf/Exercise/Network/NetworkTest.grpc.pb.cc",
+  "file": "/home/cccmmf/Exercise/Network/NetworkTest.grpc.pb.cc"
+},
+{
+  "directory": "/home/cccmmf/Exercise/Network/build",
+  "command": "/usr/bin/g++ -DCARES_STATICLIB -I/home/cccmmf/Exercise/Network  -O2 -g  -std=gnu++17 -o CMakeFiles/server.out.dir/NetworkTest.pb.cc.o -c /home/cccmmf/Exercise/Network/NetworkTest.pb.cc",
+  "file": "/home/cccmmf/Exercise/Network/NetworkTest.pb.cc"
+},
+{
+  "directory": "/home/cccmmf/Exercise/Network/build",
+  "command": "/usr/bin/g++ -DCARES_STATICLIB -I/home/cccmmf/Exercise/Network  -O2 -g  -std=gnu++17 -o CMakeFiles/server.out.dir/test_server.cpp.o -c /home/cccmmf/Exercise/Network/test_server.cpp",
+  "file": "/home/cccmmf/Exercise/Network/test_server.cpp"
+}
+]

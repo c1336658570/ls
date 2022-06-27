@@ -1,0 +1,4 @@
+/home/cccmmf/Exercise/Network/build/CMakeFiles/client.out.dir
+/home/cccmmf/Exercise/Network/build/CMakeFiles/server.out.dir
+/home/cccmmf/Exercise/Network/build/CMakeFiles/edit_cache.dir
+/home/cccmmf/Exercise/Network/build/CMakeFiles/rebuild_cache.dir
