@@ -19,6 +19,8 @@
     "taskqueue.h": "c",
     "pthread.h": "c",
     "threadpool.h": "c",
-    "philosopher.h": "c"
+    "philosopher.h": "c",
+    "string": "cpp",
+    "iostream": "cpp"
   }
 }
