@@ -21,6 +21,7 @@
     "threadpool.h": "c",
     "philosopher.h": "c",
     "string": "cpp",
-    "iostream": "cpp"
+    "iostream": "cpp",
+    "json.hpp": "c"
   }
 }
