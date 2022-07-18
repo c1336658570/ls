@@ -1,3 +1,39 @@
+/*
+typedef struct redisReply
+{
+    //命令执行结果的返回类型
+    int type; //REDIS_REPLY
+    //存储执行结果返回为整数
+    long long integer; // The integer when type is REDIS_REPLY_INTEGER
+    //字符串值的长度
+    size_t len; //Length of string
+    //存储命令执行结果返回是字符串
+    char *str; // Used for both REDIS_REPLY_ERROR and REDIS_REPLY_STRING
+    //返回结果是数组的大小
+    size_t elements; // number of elements, for REDIS_REPLY_ARRAY
+    //存储执行结果返回是数组
+    struct redisReply **element; // elements vector for REDIS_REPLY_ARRAY
+} redisReply;
+
+REDIS_REPLY_STRING == 1:返回值是字符串,字符串储存在redis->str当中,字符串长度为redis->len。
+REDIS_REPLY_ARRAY == 2：返回值是数组，数组大小存在redis->elements里面，数组值存储在redis->element[i]里面。
+数组里面存储的是指向redisReply的指针，数组里面的返回值可以通过redis->element[i]->str来访问，
+数组的结果里全是type==REDIS_REPLY_STRING的redisReply对象指针。
+REDIS_REPLY_INTEGER == 3：返回值为整数 long long。
+REDIS_REPLY_NIL==4：返回值为空表示执行结果为空。
+REDIS_REPLY_STATUS ==5：返回命令执行的状态，比如set foo bar 返回的状态为OK，
+存储在str当中 reply->str == "OK"。
+REDIS_REPLY_ERROR ==6 ：命令执行错误,错误信息存放在 reply->str当中。
+
+set key value : 返回 string reply->str == "OK"。
+hset key hkey value:返回 integer reply->integer == 1。
+hdel key hkey:返回 integer reply->integer ==1。
+sadd set member:返回 integer reply->integer ==1。
+sismember setkey member:返回 integer reply->integer ==1。
+smembers setkey:返回 array reply->element[i]->str为返回结果值。
+
+*/
+
 #ifndef __REDIS_HANDLER_H__
 #define __REDIS_HANDLER_H__
 

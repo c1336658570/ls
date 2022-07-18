@@ -9,6 +9,15 @@ using namespace nlohmann;
 class User
 {
 public:
+    User()
+    {
+        name = "";
+        passwd = "";
+        key = "";
+        int uid = 0;
+        int flag = 0;
+    }
+
     void From_Json(const json &jn, User &user)
     {
         jn["name"].get_to(user.name);
@@ -44,11 +53,11 @@ public:
     }
 
 private:
-    string name = "";   //账号
-    string passwd = ""; //密码
-    string key = "";    //密匙
-    int uid = 0;        // uid唯一表示一个账号
-    int flag = 0;       //操作，1登陆，2注册，3找回密码，4退出
+    string name;   //账号
+    string passwd; //密码
+    string key;    //密匙
+    int uid;       // uid唯一表示一个账号
+    int flag;      //操作，1登陆，2注册，3找回密码，4退出
 };
 
 #endif
