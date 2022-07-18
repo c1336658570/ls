@@ -23,8 +23,8 @@ public:
             cout << "输入有误" << endl;
             cin.clear();
         }
-        return flag;
         u.setFlag(flag); //设置flag
+        return flag;
     }
 
     //账号输入
@@ -91,6 +91,7 @@ public:
         {
             close(clnt_fd);
             cout << "登陆失败，程序退出！\n";
+            exit(-1);
         }
         else
         {

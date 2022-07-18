@@ -9,7 +9,7 @@ using namespace nlohmann;
 class User
 {
 public:
-    void To_User(const json &jn, User &user)
+    void From_Json(const json &jn, User &user)
     {
         jn["name"].get_to(user.name);
         jn.at("passwd").get_to(user.passwd);

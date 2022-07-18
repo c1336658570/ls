@@ -18,6 +18,7 @@ int main(void)
             a.reg();
             break;
         case 3:
+            a.retrieve();
             break;
         case 4:
             a.quit();
