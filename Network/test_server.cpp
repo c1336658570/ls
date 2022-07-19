@@ -27,10 +27,12 @@ using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
-class NetworkTestServer final : public NetworkTest::NT::Service {
+class NetworkTestServer final : public NetworkTest::NT::Service
+{
     friend void RunTestServer(std::shared_ptr<NetworkTestServer> service,
                               std::string addr);
-    struct MessageInfo {
+    struct MessageInfo
+    {
         std::string answer;
         std::string msg;
     };
@@ -40,9 +42,11 @@ class NetworkTestServer final : public NetworkTest::NT::Service {
     uint32_t recv_seq = 0, seq = 0, cmp = 0;
     ::grpc::Status AnswerRegister(::grpc::ServerContext *context,
                                   const ::NetworkTest::Register *request,
-                                  ::NetworkTest::Result *response) override {
+                                  ::NetworkTest::Result *response) override
+    {
         std::lock_guard<std::mutex> lk(mtx);
-        if (status != Success) {
+        if (status != Success)
+        {
             response->set_reason(status);
             return Status::OK;
         }
@@ -53,20 +57,24 @@ class NetworkTestServer final : public NetworkTest::NT::Service {
         response->set_reason(Success);
         return Status::OK;
     }
-    void Update() {
+    void Update()
+    {
 
         if (status != Success)
             return;
 
         auto avaliableMaxResult = std::min(recv_seq, seq);
 
-        if (cmp > avaliableMaxResult) {
+        if (cmp > avaliableMaxResult)
+        {
             status = TestError;
             return;
         }
-        while (cmp < avaliableMaxResult) {
+        while (cmp < avaliableMaxResult)
+        {
             auto *t = info[++cmp];
-            if (t->answer == t->msg) {
+            if (t->answer == t->msg)
+            {
                 status = Diff;
                 delete t;
                 return;
@@ -78,36 +86,43 @@ class NetworkTestServer final : public NetworkTest::NT::Service {
 
     ::grpc::Status ResultQuery(::grpc::ServerContext *context,
                                const ::NetworkTest::Query *request,
-                               ::NetworkTest::Result *response) override {
+                               ::NetworkTest::Result *response) override
+    {
         std::lock_guard<std::mutex> lk(mtx);
-        if (status != Success) {
+        if (status != Success)
+        {
             response->set_reason(static_cast<uint32_t>(status));
             response->set_id(cmp);
             return Status::OK;
         }
         auto queryIdx = request->id();
-        if (queryIdx <= cmp) {
+        if (queryIdx <= cmp)
+        {
             response->set_reason(static_cast<uint32_t>(Success));
             response->set_id(cmp);
             return Status::OK;
         }
         Update();
-        if (cmp >= queryIdx) {
+        if (cmp >= queryIdx)
+        {
             response->set_reason(static_cast<uint32_t>(Success));
             response->set_id(cmp);
             return Status::OK;
         }
-        if (status != Success) {
+        if (status != Success)
+        {
             response->set_reason(static_cast<uint32_t>(status));
             response->set_id(cmp);
             return Status::OK;
         }
-        if (cmp == recv_seq) {
+        if (cmp == recv_seq)
+        {
             response->set_reason(static_cast<uint32_t>(Wait));
             response->set_id(cmp);
             return Status::OK;
         }
-        if (cmp == seq) {
+        if (cmp == seq)
+        {
             response->set_reason(static_cast<uint32_t>(WaitRPC));
             response->set_id(cmp);
             return Status::OK;
@@ -119,12 +134,15 @@ class NetworkTestServer final : public NetworkTest::NT::Service {
     }
 
 public:
-    void commit(std::string &&msg) {
+    void commit(std::string &&msg)
+    {
         std::lock_guard<std::mutex> lk(mtx);
-        if (status != Success) {
+        if (status != Success)
+        {
             return;
         }
-        if (info[++recv_seq] == nullptr) {
+        if (info[++recv_seq] == nullptr)
+        {
             info[recv_seq] = new MessageInfo;
         }
         auto *t = info[recv_seq];
@@ -133,21 +151,24 @@ public:
 };
 
 void RunTestServer(std::shared_ptr<NetworkTestServer> service,
-                   std::string addr) {
+                   std::string addr)
+{
     ServerBuilder builder;
     builder.AddListeningPort(addr, grpc::InsecureServerCredentials());
     builder.RegisterService(service.get());
     std::unique_ptr<Server> server(builder.BuildAndStart());
     server->Wait();
 }
-std::shared_ptr<NetworkTestServer> TestInit(std::string addr) {
+std::shared_ptr<NetworkTestServer> TestInit(std::string addr)
+{
 
     auto tester = std::make_shared<NetworkTestServer>();
     auto grpc = std::thread(RunTestServer, tester, std::move(addr));
     grpc.detach();
     return tester;
 }
-class mess {
+class mess
+{
 public:
     int partid;
     int len;
@@ -170,7 +191,8 @@ int Close(int fd);
 ssize_t Readn(int fd, void *vptr, size_t n);
 ssize_t Writen(int fd, const void *vptr, size_t n);
 
-int main() {
+int main()
+{
     // Server 端的监听地址
     auto test = TestInit("0.0.0.0:1234");
 
@@ -190,11 +212,12 @@ int main() {
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     serv_addr.sin_port = htons(SERV_PORT);
-    Bind(serv_sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+    Bind(serv_sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
     Listen(serv_sock, 128);
 
     efd = epoll_create(OPEN_MAX);
-    if (efd == -1) {
+    if (efd == -1)
+    {
         perr_exit("epoll_create error");
     }
 
@@ -203,41 +226,52 @@ int main() {
     tep.events = EPOLLIN;
     tep.data.fd = serv_sock;
     ret = epoll_ctl(efd, EPOLL_CTL_ADD, serv_sock, &tep);
-    if (ret == -1) {
+    if (ret == -1)
+    {
         perr_exit("epoll_ctr error");
     }
 
-    while (1) {
+    while (1)
+    {
         //-1表永久阻塞
         nready = epoll_wait(efd, ep, OPEN_MAX, -1);
-        if (nready == -1) {
+        if (nready == -1)
+        {
             perr_exit("epoll_wait error");
         }
 
-        for (i = 0; i < nready; ++i) {
-            if (!(ep[i].events & EPOLLIN)) {
+        for (i = 0; i < nready; ++i)
+        {
+            if (!(ep[i].events & EPOLLIN))
+            {
                 continue;
             }
 
-            if (ep[i].data.fd == serv_sock) {
+            if (ep[i].data.fd == serv_sock)
+            {
                 clnt_addr_len = sizeof(clnt_addr);
-                clnt_sock = Accept(serv_sock, (struct sockaddr *) &clnt_addr, &clnt_addr_len);
+                clnt_sock = Accept(serv_sock, (struct sockaddr *)&clnt_addr, &clnt_addr_len);
                 printf("accept ip %s, port %d\n", inet_ntop(AF_INET, &clnt_addr.sin_addr, str, INET_ADDRSTRLEN),
                        ntohs(clnt_addr.sin_port));
 
                 tep.events = EPOLLIN;
                 tep.data.fd = clnt_sock;
                 ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &tep);
-                if (ret == -1) {
+                if (ret == -1)
+                {
                     perr_exit("epoll_ctl error");
                 }
-            } else {
+            }
+            else
+            {
                 sock = ep[i].data.fd;
                 int len;
                 n = Readn(sock, &len, sizeof(len));
-                if (n == 0) {
+                if (n == 0)
+                {
                     ret = epoll_ctl(efd, EPOLL_CTL_DEL, sock, NULL);
-                    if (ret == -1) {
+                    if (ret == -1)
+                    {
                         perr_exit("epoll_ctr error");
                     }
                     close(sock);
@@ -248,23 +282,29 @@ int main() {
                 len = ntohl(len);
 
                 printf("len = %d\n", len);
-                char *buf = (char *) malloc(len);
+                char *buf = (char *)malloc(len);
                 n = Readn(sock, buf, len);
                 Writen(STDOUT_FILENO, buf, len);
                 Writen(STDOUT_FILENO, "\n", 1);
 
-                if (n == 0) {
+                if (n == 0)
+                {
                     ret = epoll_ctl(efd, EPOLL_CTL_DEL, sock, NULL);
-                    if (ret == -1) {
+                    if (ret == -1)
+                    {
                         perr_exit("epoll_ctr error");
                     }
                     close(sock);
                     printf("client%d closed connection\n", sock);
-                } else if (n < 0) {
+                }
+                else if (n < 0)
+                {
                     perror("read n < 0 error: ");
                     ret = epoll_ctl(efd, EPOLL_CTL_DEL, sock, NULL);
                     Close(sock);
-                } else {
+                }
+                else
+                {
                     std::string str(buf, len);
                     test->commit(std::move(str));
                 }
@@ -278,16 +318,19 @@ int main() {
     // Put your code Here!
 }
 
-void perr_exit(const char *s) {
+void perr_exit(const char *s)
+{
     perror(s);
     exit(-1);
 }
 
-int Accept(int fd, struct sockaddr *sa, socklen_t *salenptr) {
+int Accept(int fd, struct sockaddr *sa, socklen_t *salenptr)
+{
     int n;
 
 again:
-    if ((n = accept(fd, sa, salenptr)) < 0) {
+    if ((n = accept(fd, sa, salenptr)) < 0)
+    {
         if ((errno == ECONNABORTED) || (errno == EINTR))
             goto again;
         else
@@ -296,7 +339,8 @@ again:
     return n;
 }
 
-int Bind(int fd, const struct sockaddr *sa, socklen_t salen) {
+int Bind(int fd, const struct sockaddr *sa, socklen_t salen)
+{
     int n;
 
     if ((n = bind(fd, sa, salen)) < 0)
@@ -305,7 +349,8 @@ int Bind(int fd, const struct sockaddr *sa, socklen_t salen) {
     return n;
 }
 
-int Connect(int fd, const struct sockaddr *sa, socklen_t salen) {
+int Connect(int fd, const struct sockaddr *sa, socklen_t salen)
+{
     int n;
 
     if ((n = connect(fd, sa, salen)) < 0)
@@ -314,7 +359,8 @@ int Connect(int fd, const struct sockaddr *sa, socklen_t salen) {
     return n;
 }
 
-int Listen(int fd, int backlog) {
+int Listen(int fd, int backlog)
+{
     int n;
 
     if ((n = listen(fd, backlog)) < 0)
@@ -323,7 +369,8 @@ int Listen(int fd, int backlog) {
     return n;
 }
 
-int Socket(int family, int type, int protocol) {
+int Socket(int family, int type, int protocol)
+{
     int n;
 
     if ((n = socket(family, type, protocol)) < 0)
@@ -332,11 +379,13 @@ int Socket(int family, int type, int protocol) {
     return n;
 }
 
-ssize_t Read(int fd, void *ptr, size_t nbytes) {
+ssize_t Read(int fd, void *ptr, size_t nbytes)
+{
     ssize_t n;
 
 again:
-    if ((n = read(fd, ptr, nbytes)) == -1) {
+    if ((n = read(fd, ptr, nbytes)) == -1)
+    {
         if (errno == EINTR)
             goto again;
         else
@@ -345,11 +394,13 @@ again:
     return n;
 }
 
-ssize_t Write(int fd, const void *ptr, size_t nbytes) {
+ssize_t Write(int fd, const void *ptr, size_t nbytes)
+{
     ssize_t n;
 
 again:
-    if ((n = write(fd, ptr, nbytes)) == -1) {
+    if ((n = write(fd, ptr, nbytes)) == -1)
+    {
         if (errno == EINTR)
             goto again;
         else
@@ -358,7 +409,8 @@ again:
     return n;
 }
 
-int Close(int fd) {
+int Close(int fd)
+{
     int n;
     if ((n = close(fd)) == -1)
         perr_exit("close error");
@@ -367,18 +419,21 @@ int Close(int fd) {
 }
 
 ssize_t
-Readn(int fd, void *buffer, size_t n) {
+Readn(int fd, void *buffer, size_t n)
+{
     ssize_t numRead; /* # of bytes fetched by last read() */
     size_t totRead;  /* Total # of bytes read so far */
     char *buf;
 
-    buf = (char *) buffer; /* No pointer arithmetic on "void *" */
-    for (totRead = 0; totRead < n;) {
+    buf = (char *)buffer; /* No pointer arithmetic on "void *" */
+    for (totRead = 0; totRead < n;)
+    {
         numRead = read(fd, buf, n - totRead);
 
         if (numRead == 0)   /* EOF */
             return totRead; /* May be 0 if this is first read() */
-        if (numRead == -1) {
+        if (numRead == -1)
+        {
             if (errno == EINTR || errno == EAGAIN)
                 continue; /* Interrupted --> restart read() */
             else
@@ -391,16 +446,19 @@ Readn(int fd, void *buffer, size_t n) {
 }
 
 ssize_t
-Writen(int fd, const void *buffer, size_t n) {
+Writen(int fd, const void *buffer, size_t n)
+{
     ssize_t numWritten; /* # of bytes written by last write() */
     size_t totWritten;  /* Total # of bytes written so far */
     const char *buf;
 
-    buf = (char *) buffer; /* No pointer arithmetic on "void *" */
-    for (totWritten = 0; totWritten < n;) {
+    buf = (char *)buffer; /* No pointer arithmetic on "void *" */
+    for (totWritten = 0; totWritten < n;)
+    {
         numWritten = write(fd, buf, n - totWritten);
 
-        if (numWritten <= 0) {
+        if (numWritten <= 0)
+        {
             if (numWritten == -1 && errno == EINTR)
                 continue; /* Interrupted --> restart write() */
             else

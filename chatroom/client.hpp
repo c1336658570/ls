@@ -151,6 +151,7 @@ public:
         {
             cout << "注册成功！" << endl;
         }
+        close(clnt_fd);
     }
 
     //找回密码

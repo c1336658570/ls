@@ -45,6 +45,30 @@ public:
         redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
         return r;
     }
+    static redisReply *hsetValue(redisContext *c, const string &key, const string &field, const string &value)
+    {
+        string cmd = "hset " + key + " " + field + " " + value;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
+    static redisReply *hsetexist(redisContext *c, const string &key, const string &field)
+    {
+        string cmd = "hexists " + key + " " + field;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
+    static redisReply *gethash(redisContext *c, const string &key, const string &field)
+    {
+        string cmd = "hget " + key + " " + field;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
+    static redisReply *hashdel(redisContext *c, const string &key, const string &field)
+    {
+        string cmd = "hdel " + key + " " + field;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
 };
 
 #endif
