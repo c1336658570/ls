@@ -34,8 +34,8 @@ smembers setkey:返回 array reply->element[i]->str为返回结果值。
 
 */
 
-#ifndef __REDIS_HANDLER_H__
-#define __REDIS_HANDLER_H__
+#ifndef __REDIS2_H
+#define __REDIS2_H
 
 #include <hiredis/hiredis.h>
 #include <string>

@@ -30,9 +30,10 @@ public:
     //账号输入
     void read_account()
     {
-        string name, passwd;
+        string passwd, uid;
+
         cout << "请输入你的账号，不要超过20个字符" << endl;
-        while (!(cin >> name) || name.size() > 20)
+        while (!(cin >> uid) || uid.size() > 20)
         {
             cout << "输入有误或账号过长，请重新输入" << endl;
             cin.clear(); //清除cin缓冲
@@ -45,7 +46,7 @@ public:
             cin.clear(); //清除cin缓冲
         }
 
-        u.setName(name);     //设置账号
+        u.setNumber(uid);    //设置账号
         u.setPasswd(passwd); //设置密码
     }
 
@@ -59,7 +60,7 @@ public:
 
         for (i = 1; i <= 5; ++i)
         {
-            cout << "你有5次登陆机会，现在是第" << i << "次" << endl;
+            cout << "你有5次登录机会，现在是第" << i << "次" << endl;
             read_account();
 
             //向服务器写数据
@@ -71,26 +72,29 @@ public:
             ssock::Writen(clnt_fd, (void *)&len, sizeof(len));
             ssock::Writen(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()));
 
-            char buf[10];
-            //从服务器读，看账号或密码是否正确
+            char buf[BUFSIZ];
+            //从服务器读，看账号和密码是否正确
             ssock::Readn(clnt_fd, (void *)&len, sizeof(len));
             len = ntohl(len);
             ssock::Readn(clnt_fd, buf, len);
-            if (strncmp(buf, "Yes", 3) == 0)
+            if (strncmp(buf, "No", 2) == 0)
             {
-                cout << "登录成功" << endl;
-                break;
+                cout << "账号或密码错误" << endl;
             }
             else
             {
-                cout << "账号或密码错误" << endl;
+                cout << "登录成功" << endl;
+                jn = json::parse(R"(buf)");
+                u.From_Json(jn, u);
+                u.print();
+                break;
             }
         }
 
         if (i == 5)
         {
             close(clnt_fd);
-            cout << "登陆失败，程序退出！\n";
+            cout << "登录失败，程序退出！\n";
             exit(-1);
         }
         else
@@ -102,9 +106,16 @@ public:
     //注册
     void reg()
     {
-        string key;
+        string key, name;
 
         read_account();
+
+        cout << "请输入你的昵称，不要超过20个字符" << endl;
+        while (!(cin >> name) || name.size() > 20)
+        {
+            cout << "输入有误或昵称过长，请重新输入" << endl;
+            cin.clear(); //清除cin缓冲
+        }
 
         cout << "请输入密匙，用来找回密码，不要超过20个字符" << endl;
         while (!(cin >> key) || key.size() > 20)
@@ -112,7 +123,8 @@ public:
             cout << "输入有误或密码过长，请重新输入" << endl;
             cin.clear(); //清除cin缓冲
         }
-        u.setKey(key); //设置key
+        u.setKey(key);   //设置key
+        u.setName(name); //设置昵称
 
         int clnt_fd = ssock::Socket();
         ssock::Connect(clnt_fd, 9999, "127.0.0.1");
@@ -131,13 +143,13 @@ public:
         ssock::Readn(clnt_fd, (void *)&len, sizeof(len));
         len = ntohl(len);
         ssock::Readn(clnt_fd, buf, len);
-        if (strncmp(buf, "yes", 3) == 0)
+        if (strncmp(buf, "No", 2) == 0)
         {
-            cout << "注册成功！" << endl;
+            cout << "注册失败，账号已经存在！" << endl;
         }
         else
         {
-            cout << "注册失败！" << endl;
+            cout << "注册成功！" << endl;
         }
     }
 
@@ -145,9 +157,9 @@ public:
     void retrieve()
     {
         string key;
-        string name;
+        string uid;
         cout << "请输入你的账号，不要超过20个字符" << endl;
-        while (!(cin >> name) || name.size() > 20)
+        while (!(cin >> uid) || uid.size() > 20)
         {
             cout << "输入有误或账号过长，请重新输入" << endl;
             cin.clear(); //清除cin缓冲
@@ -158,7 +170,7 @@ public:
             cout << "输入有误或密码过长，请重新输入" << endl;
             cin.clear(); //清除cin缓冲
         }
-        u.setName(name);
+        u.setNumber(uid);
         u.setKey(key);
 
         int clnt_fd = ssock::Socket();
@@ -173,7 +185,7 @@ public:
         ssock::Writen(clnt_fd, (void *)&len, sizeof(len));
         ssock::Writen(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()));
 
-        char buf[21];
+        char buf[BUFSIZ];
         //从服务器读，看密码是多少
         ssock::Readn(clnt_fd, (void *)&len, sizeof(len));
         len = ntohl(len);
@@ -184,7 +196,9 @@ public:
         }
         else
         {
-            cout << "找回成功，密码为：" << buf << endl;
+            jn = json::parse(R"(buf)");
+            u.From_Json(jn, u);
+            cout << "找回成功，密码为：" << u.getPasswd() << endl;
         }
     }
 
@@ -195,7 +209,7 @@ public:
     }
 
 private:
-    int flag = 1; //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
+    int flag = 0; //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
     User u;       //用户信息，用来登录或注册
 };
 

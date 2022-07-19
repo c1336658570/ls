@@ -14,8 +14,8 @@ public:
         name = "";
         passwd = "";
         key = "";
-        int uid = 0;
-        int flag = 0;
+        uid = "";
+        flag = 0;
     }
 
     void From_Json(const json &jn, User &user)
@@ -39,24 +39,53 @@ public:
     {
         name = s;
     }
+    string getName()
+    {
+        return name;
+    }
+    void setNumber(string &u)
+    {
+        uid = u;
+    }
+    string getNumber()
+    {
+        return uid;
+    }
     void setPasswd(string &p)
     {
         passwd = p;
+    }
+    string getPasswd()
+    {
+        return passwd;
     }
     void setKey(string &k)
     {
         key = k;
     }
-    void setFlag(int &f)
+    string getKey()
+    {
+        return key;
+    }
+    int setFlag(int &f)
     {
         flag = f;
     }
+    int getFlag()
+    {
+        return flag;
+    }
+    void print()
+    {
+        cout << "账号：" << uid << endl
+             << "昵称：" << name << endl;
+    }
 
 private:
-    string name;   //账号
+    string uid;    // uid唯一表示一个账号
+    string name;   //名字
     string passwd; //密码
     string key;    //密匙
-    int uid;       // uid唯一表示一个账号
     int flag;      //操作，1登陆，2注册，3找回密码，4退出
 };
 
