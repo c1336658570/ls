@@ -25,6 +25,7 @@ public:
                 cout << "Can't allocate redis context" << endl;
             }
         }
+        return c;
     }
     // set
     static redisReply *setValue(redisContext *c, const string &key, const string &value)
@@ -36,6 +37,12 @@ public:
     static redisReply *getValue(redisContext *c, const string &key)
     {
         string cmd = "get " + key;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
+    static redisReply *existsValue(redisContext *c, const string &key)
+    {
+        string cmd = "exists " + key;
         redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
         return r;
     }

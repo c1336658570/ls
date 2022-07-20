@@ -17,6 +17,10 @@ public:
         uid = "";
         flag = 0;
         friends = "";
+        friendUid = "";
+        shield = "";
+        record = "";
+        clnt_fd = 0;
     }
 
     void From_Json(const json &jn, User &user)
@@ -28,6 +32,9 @@ public:
         jn["flag"].get_to(user.flag);
         jn["friends"].get_to(user.friends);
         jn["friendUid"].get_to(user.friendUid);
+        jn["shield"].get_to(user.shield);
+        jn["record"].get_to(user.record);
+        jn["clnt_fd"].get_to(user.clnt_fd);
     }
     void To_Json(json &jn, const User &user)
     {
@@ -38,9 +45,12 @@ public:
             {"uid", user.uid},
             {"flag", user.flag},
             {"friends", user.friends},
-            {"friendUid", user.friendUid}};
+            {"friendUid", user.friendUid},
+            {"shield", user.shield},
+            {"record", user.record},
+            {"clnt_fd", user.clnt_fd}};
     }
-    void setName(string &s)
+    void setName(const string &s)
     {
         name = s;
     }
@@ -48,7 +58,7 @@ public:
     {
         return name;
     }
-    void setNumber(string &u)
+    void setNumber(const string &u)
     {
         uid = u;
     }
@@ -56,7 +66,7 @@ public:
     {
         return uid;
     }
-    void setPasswd(string &p)
+    void setPasswd(const string &p)
     {
         passwd = p;
     }
@@ -64,7 +74,7 @@ public:
     {
         return passwd;
     }
-    void setKey(string &k)
+    void setKey(const string &k)
     {
         key = k;
     }
@@ -72,7 +82,7 @@ public:
     {
         return key;
     }
-    int setFlag(int &f)
+    void setFlag(const int &f)
     {
         flag = f;
     }
@@ -80,7 +90,7 @@ public:
     {
         return flag;
     }
-    void setFriends(string f)
+    void setFriends(const string &f)
     {
         friends = f;
     }
@@ -88,21 +98,63 @@ public:
     {
         return friends;
     }
+    void setfriendUid(const string &fu)
+    {
+        friendUid = fu;
+    }
+    string getfriendUid()
+    {
+        return friendUid;
+    }
+    void setShield(const string &s)
+    {
+        shield = s;
+    }
+    string getShield()
+    {
+        return shield;
+    }
+    void setRecord(const string &s)
+    {
+        record = s;
+    }
+    string getRecord()
+    {
+        return record;
+    }
+    void setClnt_fd(const int &c)
+    {
+        clnt_fd = c;
+    }
+    int getClnt_fd()
+    {
+        return clnt_fd;
+    }
     void print()
     {
         cout << "账号：" << uid << endl
-             << "昵称：" << name << endl;
+             << "昵称：" << name << endl
+             << "密码" << passwd << endl
+             << "密匙" << key << endl
+             << "操作" << flag << endl
+             << "好友列表索引" << friends << endl
+             << "要发送消息的好友的uid" << friendUid << endl
+             << "屏蔽好友列表索引" << shield << endl
+             << "聊天记录列表索引" << record << endl
+             << "套间字" << clnt_fd << endl;
     }
 
 private:
-    string uid;           // uid唯一表示一个账号
-    string name;          //名字
-    string passwd;        //密码
-    string key;           //密匙
-    int flag;             //操作，1登陆，2注册，3找回密码，4退出
-    string friends;       //好友列表索引
-    string friendUid;     //要发送消息的好友的uid
-    string shieldfriends; //屏蔽好友列表索引
+    int clnt_fd;      //客户端套间字
+    string uid;       // uid唯一表示一个账号
+    string name;      //名字
+    string passwd;    //密码
+    string key;       //密匙
+    int flag;         //操作，1登陆，2注册，3找回密码，4退出
+    string friends;   //好友列表索引，通过uid_1查询数据库
+    string friendUid; //要发送消息的好友的uid
+    string shield;    //屏蔽好友列表索引，通过uid_2查询数据库
+    string record;    //聊天记录列表索引，通过uid_3查询数据库，该数据库保存的是与该好友聊天记录相关的数据表
 };
 
 #endif

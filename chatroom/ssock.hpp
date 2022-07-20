@@ -1,4 +1,27 @@
-#include "ssock.h"
+#ifndef SOCKET_H
+#define SOCKET_H
+#include <iostream>
+#include <string>
+#include <cstring>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+using namespace std;
+
+class ssock
+{
+public:
+    static void perr_exit(const string s);
+    static int Socket();
+    static void Bind(int sockfd, u_int16_t port, const string ip = "127.1");
+    static void Listen(int sockfd, int num = 128);
+    static int Accept(int sockfd);
+    static void Connect(int sockfd, uint16_t port, const string ip);
+    static ssize_t Read(int fd, void *ptr, size_t nbytes);
+    static ssize_t Write(int fd, const void *ptr, size_t nbytes);
+    static ssize_t Readn(int fd, void *vptr, size_t n);
+    static ssize_t Writen(int fd, const void *vptr, size_t n);
+};
 
 void ssock::perr_exit(const string s)
 {
@@ -23,7 +46,7 @@ void ssock::Bind(int sockfd, u_int16_t port, const string ip)
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
-    inet_pton(AF_INET, ip.c_str(), &serv_addr.sin_addr.s_addr);
+    inet_pton(AF_INET, ip.c_str(), &serv_addr.sin_addr);
     int ret = bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
     if (ret < 0)
     {
@@ -73,8 +96,8 @@ void ssock::Connect(int sockfd, uint16_t port, const string ip)
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
-    inet_pton(AF_INET, ip.c_str(), &serv_addr.sin_addr.s_addr);
-    int ret = connect(AF_INET, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+    inet_pton(AF_INET, ip.c_str(), &serv_addr.sin_addr);
+    int ret = connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
     if (ret < 0)
     {
         perr_exit("connect error");
@@ -162,3 +185,4 @@ ssize_t ssock::Writen(int fd, const void *vptr, size_t n)
     }
     return n;
 }
+#endif

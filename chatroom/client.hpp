@@ -3,7 +3,7 @@
 #include <iostream>
 #include <unistd.h>
 #include "jjson.hpp"
-#include "ssock.h"
+#include "ssock.hpp"
 #include "leveldb/db.h"
 using namespace std;
 
@@ -11,7 +11,7 @@ class account
 {
 public:
     //菜单
-    int show_Menu()
+    void show_Menu()
     {
         cout << "请输入你要执行的操作" << endl;
         cout << "1、登陆" << endl;
@@ -24,7 +24,21 @@ public:
             cin.clear();
         }
         u.setFlag(flag); //设置flag
-        return flag;
+        switch (flag)
+        {
+        case 1:
+            login();
+            break;
+        case 2:
+            reg();
+            break;
+        case 3:
+            retrieve();
+            break;
+        case 4:
+            quit();
+            break;
+        }
     }
 
     //账号输入
@@ -51,7 +65,7 @@ public:
     }
 
     //登录
-    int login()
+    void login()
     {
         int i;
 
@@ -67,10 +81,10 @@ public:
             json jn;
             u.To_Json(jn, u);
             string u_jn = jn.dump();
-            uint32_t len = strlen(u_jn.c_str());
+            uint32_t len = strlen(u_jn.c_str()) + 1;
             len = htonl(len);
             ssock::Writen(clnt_fd, (void *)&len, sizeof(len));
-            ssock::Writen(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()));
+            ssock::Writen(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()) + 1);
 
             char buf[BUFSIZ];
             //从服务器读，看账号和密码是否正确
@@ -84,8 +98,9 @@ public:
             else
             {
                 cout << "登录成功" << endl;
-                jn = json::parse(R"(buf)");
+                jn = json::parse(buf);
                 u.From_Json(jn, u);
+                u.setClnt_fd(clnt_fd);
                 u.print();
                 break;
             }
@@ -96,10 +111,6 @@ public:
             close(clnt_fd);
             cout << "登录失败，程序退出！\n";
             exit(-1);
-        }
-        else
-        {
-            return clnt_fd;
         }
     }
 
@@ -133,10 +144,10 @@ public:
         json jn;
         u.To_Json(jn, u);
         string u_jn = jn.dump();
-        uint32_t len = strlen(u_jn.c_str());
+        uint32_t len = strlen(u_jn.c_str()) + 1;
         len = htonl(len);
         ssock::Writen(clnt_fd, (void *)&len, sizeof(len));
-        ssock::Writen(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()));
+        ssock::Writen(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()) + 1);
 
         char buf[10];
         //从服务器读，看是否注册成功
@@ -181,10 +192,10 @@ public:
         json jn;
         u.To_Json(jn, u);
         string u_jn = jn.dump();
-        uint32_t len = strlen(u_jn.c_str());
+        uint32_t len = strlen(u_jn.c_str()) + 1;
         len = htonl(len);
         ssock::Writen(clnt_fd, (void *)&len, sizeof(len));
-        ssock::Writen(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()));
+        ssock::Writen(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()) + 1);
 
         char buf[BUFSIZ];
         //从服务器读，看密码是多少
@@ -197,10 +208,11 @@ public:
         }
         else
         {
-            jn = json::parse(R"(buf)");
+            jn = json::parse(buf);
             u.From_Json(jn, u);
             cout << "找回成功，密码为：" << u.getPasswd() << endl;
         }
+        close(clnt_fd);
     }
 
     //退出
