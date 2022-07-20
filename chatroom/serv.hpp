@@ -12,6 +12,8 @@ g++ -o serv serv.cc serv.hpp ssock.cpp -lhiredis
 #include "redis1.hpp"
 #include <hiredis/hiredis.h>
 #include <sys/epoll.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "jjson.hpp"
 #include "redis1.hpp"
 using namespace std;
@@ -66,7 +68,10 @@ public:
                 if (ep[i].data.fd == serv_fd)
                 {
                     clnt_fd = ssock::Accept(serv_fd);
-                    tep.events = EPOLLIN;
+                    int flag = fcntl(clnt_fd, F_GETFL);
+                    flag |= O_NONBLOCK;
+                    fcntl(clnt_fd, F_SETFL, flag);
+                    tep.events = EPOLLIN | EPOLLET;
                     tep.data.fd = clnt_fd;
                     ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_fd, &tep);
                     if (ret == -1)
@@ -103,10 +108,11 @@ public:
                     }
                     jn = json::parse(buf);
                     u.From_Json(jn, u);
+                    // cout << u.getFlag() << endl;
                     switch (u.getFlag())
                     {
                     case 1:
-                        login(sock);
+                        bool flag = login(sock);
                         break;
                     case 2:
                         //注册后，对端套间字会关闭，将其从红黑书
@@ -120,6 +126,12 @@ public:
                         break;
                     case 3:
                         retrieve(sock);
+                        ret = epoll_ctl(efd, EPOLL_CTL_DEL, sock, NULL); //将该文件描述符从红黑树摘除
+                        if (ret == -1)
+                        {
+                            ssock::perr_exit("epoll_ctr error");
+                        }
+                        close(sock); //关闭与该客户端的链接
                         break;
                     }
                 }
@@ -128,7 +140,7 @@ public:
     }
 
     //从数据库读数据并与登陆输入的数据比较
-    void login(int clnt_sock)
+    bool login(int clnt_sock)
     {
         //打开数据库
         redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
@@ -140,7 +152,7 @@ public:
         {
             printf("Execut getValue failure\n");
             redisFree(c);
-            return;
+            return false;
         }
         if (r->type != REDIS_REPLY_STRING)
         {
@@ -151,7 +163,7 @@ public:
             len = htonl(len);
             ssock::Writen(clnt_sock, (void *)&len, sizeof(len));
             ssock::Writen(clnt_sock, "No", 2);
-            return;
+            return false;
         }
         json jn2 = json::parse(r->str);
         User u2;
@@ -165,6 +177,9 @@ public:
 
             //登录后将该用户插入到map容器中
             friends.insert(pair<string, int>(u.getNumber(), clnt_sock));
+            freeReplyObject(r);
+            redisFree(c);
+            return true;
         }
         else
         {
@@ -172,10 +187,10 @@ public:
             len = htonl(len);
             ssock::Writen(clnt_sock, (void *)&len, sizeof(len));
             ssock::Writen(clnt_sock, "No", 2);
+            freeReplyObject(r);
+            redisFree(c);
+            return false;
         }
-
-        freeReplyObject(r);
-        redisFree(c);
     }
 
     //注册
@@ -227,6 +242,7 @@ public:
             redisFree(c);
             return;
         }
+        // cout << r->str << endl;
         if (r->type != REDIS_REPLY_STRING)
         {
             printf("Execut getValue failure\n");
@@ -241,6 +257,9 @@ public:
         json jn2 = json::parse(r->str);
         User u2;
         u.From_Json(jn2, u2);
+        // u2.print();
+        // cout << "u2.getkey" << u2.getKey() << "u2.getnumber" << u2.getNumber() << endl;
+        // cout << "u.getkey" << u.getKey() << "u.getnumber" << u.getNumber() << endl;
 
         if ((u2.getKey() == u.getKey()) && (u2.getNumber() == u.getNumber()))
         {
@@ -268,6 +287,8 @@ private:
     int efd;
     struct epoll_event tep, ep[OPEN_MAX];
     map<string, int> friends;
+    list<User> offline;  //保存离线的聊天记录，存放发送消息那个人的user信息，对方上线后在该list中查找
+    list<string> groups; //群id号，不能和用户id重复，群id号作为群索引，通过该索引找到该群的所有信息，通过哈希存储，里面包含了用户id和用户权限
 };
 
 #endif

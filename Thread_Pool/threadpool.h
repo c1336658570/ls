@@ -9,8 +9,6 @@
 
 typedef struct ThreadPool ThreadPool;
 
-void perr_exit(const char *str, int erron);
-
 //创建线程池并初始化
 ThreadPool *threadPoolCreate(int min, int max, int queueSize);
 
