@@ -16,9 +16,12 @@ g++ -o serv serv.cc serv.hpp ssock.cpp -lhiredis
 #include <fcntl.h>
 #include "jjson.hpp"
 #include "redis1.hpp"
+#include "threadpool.hpp"
 using namespace std;
 
 #define OPEN_MAX 5000
+
+void start(void *arg);
 
 class serv1
 {
@@ -26,7 +29,8 @@ public:
     //建立连接，执行操作
     void connectClient()
     {
-        int nready, i, clnt_fd, sock;
+        ThreadPool pool(10);
+        int nready, i, clnt_fd;
         int ret;
 
         serv_fd = ssock::Socket();
@@ -49,6 +53,7 @@ public:
             ssock::perr_exit("epoll_ctl error");
         }
 
+        Task task;
         while (1)
         {
             nready = epoll_wait(efd, ep, OPEN_MAX, -1);
@@ -83,65 +88,43 @@ public:
                 { //不是监听套间字
                     char buf[BUFSIZ];
                     sock = ep[i].data.fd;
+
+                    ret = epoll_ctl(efd, EPOLL_CTL_DEL, ep[i].data.fd, NULL); //将该文件描述符从红黑树摘除
+                    if (ret == -1)
+                    {
+                        ssock::perr_exit("epoll_ctr error");
+                    }
+
                     uint32_t len;
                     ret = ssock::Readn(sock, (void *)&len, sizeof(len));
                     if (ret == 0)
                     {
-                        ret = epoll_ctl(efd, EPOLL_CTL_DEL, sock, NULL); //将该文件描述符从红黑树摘除
-                        if (ret == -1)
-                        {
-                            ssock::perr_exit("epoll_ctr error");
-                        }
                         close(sock); //关闭与该客户端的链接
+                        continue;
                     }
                     len = ntohl(len);
                     ret = ssock::Readn(sock, buf, len);
                     if (ret == 0)
                     {
-                        ret = epoll_ctl(efd, EPOLL_CTL_DEL, sock, NULL); //将该文件描述符从红黑树摘除
-                        if (ret == -1)
-                        {
-                            ssock::perr_exit("epoll_ctr error");
-                        }
                         close(sock); //关闭与该客户端的链接
                         continue;
                     }
+                    cout << "len = " << len << "线程id:" << pthread_self() << buf << endl;
+
                     jn = json::parse(buf);
                     u.From_Json(jn, u);
-                    // cout << u.getFlag() << endl;
-                    switch (u.getFlag())
-                    {
-                    case 1:
-                        bool flag = login(sock);
-                        break;
-                    case 2:
-                        //注册后，对端套间字会关闭，将其从红黑书
-                        reg(sock);
-                        ret = epoll_ctl(efd, EPOLL_CTL_DEL, sock, NULL); //将该文件描述符从红黑树摘除
-                        if (ret == -1)
-                        {
-                            ssock::perr_exit("epoll_ctr error");
-                        }
-                        close(sock); //关闭与该客户端的链接
-                        break;
-                    case 3:
-                        retrieve(sock);
-                        ret = epoll_ctl(efd, EPOLL_CTL_DEL, sock, NULL); //将该文件描述符从红黑树摘除
-                        if (ret == -1)
-                        {
-                            ssock::perr_exit("epoll_ctr error");
-                        }
-                        close(sock); //关闭与该客户端的链接
-                        break;
-                    }
+                    task.arg = this;
+                    task.function = start;
+                    pool.addTask(task);
                 }
             }
         }
     }
 
     //从数据库读数据并与登陆输入的数据比较
-    bool login(int clnt_sock)
+    bool login()
     {
+        int clnt_sock = sock;
         //打开数据库
         redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
         //查找与Number同名的哈希表，在map中查找密码，如果秘密相同返回该用户所有信息，
@@ -194,8 +177,9 @@ public:
     }
 
     //注册
-    void reg(int clnt_sock)
+    void reg()
     {
+        int clnt_sock = sock;
         uint32_t len;
         redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
 
@@ -218,6 +202,7 @@ public:
         }
         else
         {
+            freeReplyObject(r);
             len = 2;
             len = htonl(len);
             ssock::Writen(clnt_sock, (void *)&len, sizeof(len));
@@ -227,8 +212,9 @@ public:
     }
 
     //找回密码
-    void retrieve(int clnt_sock)
+    void retrieve()
     {
+        int clnt_sock = sock;
         //打开数据库
         redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
         //查找与Number同名的哈希表，在map中查找密码，如果秘密相同返回该用户所有信息，
@@ -279,16 +265,37 @@ public:
         freeReplyObject(r);
         redisFree(c);
     }
+    User getUser()
+    {
+        return u;
+    }
 
 private:
     User u;
     json jn;
-    int serv_fd;
+    int serv_fd, sock;
     int efd;
     struct epoll_event tep, ep[OPEN_MAX];
-    map<string, int> friends;
-    list<User> offline;  //保存离线的聊天记录，存放发送消息那个人的user信息，对方上线后在该list中查找
-    list<string> groups; //群id号，不能和用户id重复，群id号作为群索引，通过该索引找到该群的所有信息，通过哈希存储，里面包含了用户id和用户权限
+    map<string, int> friends; //保存在线用户的uid，和套间字。
+    list<User> offline;       //保存离线的聊天记录，存放发送消息那个人的user信息，对方上线后在该list中查找
+    list<string> groups;      //群id号，不能和用户id重复，群id号作为群索引，通过该索引找到该群的所有信息，通过哈希存储，里面包含了用户id和用户权限
 };
+
+void start(void *arg)
+{
+    serv1 *s = (serv1 *)arg;
+    if ((s->getUser()).getFlag() == 1)
+    {
+        s->login();
+    }
+    else if ((s->getUser()).getFlag() == 2)
+    {
+        s->reg();
+    }
+    else if ((s->getUser()).getFlag() == 3)
+    {
+        s->retrieve();
+    }
+}
 
 #endif

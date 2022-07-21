@@ -118,7 +118,6 @@ again:
     }
     return n;
 }
-
 ssize_t ssock::Write(int fd, const void *ptr, size_t nbytes)
 {
     ssize_t n;
@@ -134,55 +133,53 @@ again:
     return n;
 }
 
-//参三: 应该读取的字节数
-ssize_t ssock::Readn(int fd, void *vptr, size_t n)
+ssize_t ssock::Readn(int fd, void *buffer, size_t n)
 {
-    size_t nleft;  // usigned int 剩余未读取的字节数
-    ssize_t nread; // int 实际读到的字节数
-    char *ptr;
+    ssize_t numRead;
+    size_t totRead;
+    char *buf;
 
-    ptr = (char *)vptr;
-    nleft = n;
-
-    while (nleft > 0)
+    buf = (char *)buffer;
+    for (totRead = 0; totRead < n;)
     {
-        if ((nread = read(fd, ptr, nleft)) < 0)
+        numRead = read(fd, buf, n - totRead);
+
+        if (numRead == 0)
+            return totRead;
+        if (numRead == -1)
         {
-            if (errno == EINTR)
-                nread = 0;
+            if (errno == EINTR || errno == EWOULDBLOCK)
+                continue;
             else
                 return -1;
         }
-        else if (nread == 0)
-            break;
-
-        nleft -= nread;
-        ptr += nread;
+        totRead += numRead;
+        buf += numRead;
     }
-    return n - nleft;
+    return totRead;
 }
 
-ssize_t ssock::Writen(int fd, const void *vptr, size_t n)
+ssize_t ssock::Writen(int fd, const void *buffer, size_t n)
 {
-    size_t nleft;
-    ssize_t nwritten;
-    const char *ptr;
+    ssize_t numWritten;
+    size_t totWritten;
+    const char *buf;
 
-    ptr = (const char *)vptr;
-    nleft = n;
-    while (nleft > 0)
+    buf = (char *)buffer;
+    for (totWritten = 0; totWritten < n;)
     {
-        if ((nwritten = write(fd, ptr, nleft)) <= 0)
+        numWritten = write(fd, buf, n - totWritten);
+
+        if (numWritten <= 0)
         {
-            if (nwritten < 0 && errno == EINTR)
-                nwritten = 0;
+            if (numWritten == -1 && errno == EINTR)
+                continue;
             else
                 return -1;
         }
-
-        nleft -= nwritten;
-        ptr += nwritten;
+        totWritten += numWritten;
+        buf += numWritten;
     }
-    return n;
+    return totWritten;
 }
 #endif
