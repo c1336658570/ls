@@ -21,11 +21,12 @@ public:
     void reg();          //注册
     void retrieve();     //找回密码
     void quit();         //退出
-    void addfriend();    //添加好友
+    void addFriend();    //添加好友
 private:
-    int flag; //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
-    User u;   //用户信息，用来登录或注册
-    privateChat pChat;
+    uint32_t flag;     //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
+    User u;            //用户信息，用来登录或注册
+    privateChat pChat; //私聊类，用于发送信息
+    int clnt_fd;       //客户端套间字
 };
 
 void clnt::show_Menu1()
@@ -62,81 +63,6 @@ void clnt::show_Menu1()
     }
 }
 
-void clnt::show_Meun2() // 5好友管理，6私聊，7群管理，8群聊，9退出账号
-{
-    flag = 0;
-    cout << "请输入你要执行的操作" << endl; // 5好友管理，6私聊，7群管理，8群聊，9退出账号
-    cout << "5、好友管理" << endl;
-    cout << "6、私聊" << endl;
-    cout << "7、群管理" << endl;
-    cout << "8、群聊" << endl;
-    cout << "9、退出账号" << endl;
-    while (!(cin >> flag) || flag < 5 || flag > 9)
-    {
-        cout << "输入有误" << endl;
-        cin.clear();
-        cin.ignore(INT32_MAX, '\n');
-    }
-
-    switch (flag)
-    {
-    case 5:
-        clnt::show_Menu3();
-        break;
-    case 6:
-        clnt::show_Menu4();
-        break;
-    case 7:
-        break;
-    case 8:
-        break;
-    case 9:
-        break;
-    }
-}
-
-void clnt::show_Menu3() //好友管理
-{
-    flag = 0;
-    cout << "请输入要执行的操作" << endl; // 10、添加好友，11删除好友、12、查询好友、13显示好友在线状态、14屏蔽好友消息、15返回上一层
-    cout << "10、添加好友" << endl;
-    cout << "11、删除好友" << endl;
-    cout << "12、查询好友" << endl;
-    cout << "13、显示好友在线状态" << endl;
-    cout << "14、屏蔽好友消息" << endl;
-    cout << "15、返回上一层" << endl;
-    while (!(cin >> flag) || flag < 10 || flag > 15)
-    {
-        cout << "输入有误" << endl;
-        cin.clear();
-        cin.ignore(INT32_MAX, '\n');
-    }
-    switch (flag)
-    {
-    case 10:
-        addfriend();
-        break;
-    case 11:
-        break;
-    case 12:
-        break;
-    case 13:
-        break;
-    case 14:
-        break;
-    case 15:
-        break;
-    }
-}
-
-void clnt::show_Menu4() //私聊
-{
-    cout << "请输入要执行的操作" << endl;
-    cout << "16、查看历史聊天记录" << endl;
-    cout << "17、和好友聊天" << endl;
-    cout << "18、向好友发送文件" << endl;
-}
-
 //账号输入
 void clnt::read_account()
 {
@@ -164,11 +90,11 @@ void clnt::read_account()
 
 void clnt::login() //登录
 {
-
-    int clnt_fd = ssock::Socket();
+    clnt_fd = ssock::Socket();
     ssock::Connect(clnt_fd, 9999, "127.0.0.1");
 
     read_account();
+    flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
 
     //向服务器写数据
@@ -224,6 +150,7 @@ void clnt::reg()
     int clnt_fd = ssock::Socket();
     ssock::Connect(clnt_fd, 9999, "127.0.0.1");
 
+    flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
 
     //向服务器写数据
@@ -275,6 +202,7 @@ void clnt::retrieve() //找回密码
     int clnt_fd = ssock::Socket();
     ssock::Connect(clnt_fd, 9999, "127.0.0.1");
 
+    flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
 
     //向服务器写数据
@@ -306,10 +234,123 @@ void clnt::quit() //退出
     exit(0);
 }
 
-//添加好友
-void clnt::addfriend()
+void clnt::show_Meun2() // 5好友管理，6私聊，7群管理，8群聊，9退出账号
 {
+    while (1)
+    {
+        flag = 0;
+        cout << "请输入你要执行的操作" << endl; // 5好友管理，6私聊，7群管理，8群聊，9退出账号
+        cout << "5、好友管理" << endl;
+        cout << "6、私聊" << endl;
+        cout << "7、群管理" << endl;
+        cout << "8、群聊" << endl;
+        cout << "9、退出账号" << endl;
+        while (!(cin >> flag) || flag < 5 || flag > 9)
+        {
+            cout << "输入有误" << endl;
+            cin.clear();
+            cin.ignore(INT32_MAX, '\n');
+        }
+        switch (flag)
+        {
+        case 5:
+            clnt::show_Menu3();
+            break;
+        case 6:
+            clnt::show_Menu4();
+            break;
+        case 7:
+            break;
+        case 8:
+            break;
+        case 9:
+            quit();
+            break;
+        }
+    }
+}
+
+void clnt::show_Menu3() //好友管理
+{
+    while (1)
+    {
+        flag = 0;
+        cout << "请输入要执行的操作" << endl; // 10、添加好友，11删除好友、12、查询好友、13显示好友在线状态、14屏蔽好友消息、15返回上一层
+        cout << "10、添加好友" << endl;
+        cout << "11、删除好友" << endl;
+        cout << "12、查询好友" << endl;
+        cout << "13、显示好友在线状态" << endl;
+        cout << "14、屏蔽好友消息" << endl;
+        cout << "15、返回上一层" << endl;
+        while (!(cin >> flag) || flag < 10 || flag > 15)
+        {
+            cout << "输入有误" << endl;
+            cin.clear();
+            cin.ignore(INT32_MAX, '\n');
+        }
+        pChat.setFlag(flag);
+        if (flag == 15)
+        {
+            break;
+        }
+        switch (flag)
+        {
+        case 10:
+            addFriend();
+            break;
+        case 11:
+            break;
+        case 12:
+            break;
+        case 13:
+            break;
+        case 14:
+            break;
+        }
+    }
+}
+
+//添加好友
+void clnt::addFriend()
+{
+    char buf[BUFSIZ];
+    json jn;
+    string friendUid;
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+
     cout << "请输入你要添加的好友的uid" << endl;
+    cin >> friendUid; //输入好友uid
+    if (pChat.getNumber() == friendUid)
+    {
+        cout << "不可以添加自己" << endl;
+        return;
+    }
+    pChat.setFriendUid(friendUid); //设置好友uid
+    pChat.setTimeNow();            //设置时间
+
+    pChat.To_Json(jn, pChat); //将类转为序列
+
+    flag = htonl(flag);
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将序列发给服务器
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));                                 //从服务器接受结果
+    if (strcmp(buf, "No user") == 0)
+    {
+        cout << "你添加的好友不存在" << endl;
+    }
+    else
+    {
+        cout << "添加成功" << endl;
+    }
+}
+
+void clnt::show_Menu4() //私聊
+{
+    cout << "请输入要执行的操作" << endl;
+    cout << "16、查看历史聊天记录" << endl;
+    cout << "17、和好友聊天" << endl;
+    cout << "18、向好友发送文件" << endl;
 }
 
 #endif

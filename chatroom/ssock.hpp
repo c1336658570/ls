@@ -199,6 +199,10 @@ ssize_t ssock::ReadMsg(int fd, void *vptr, size_t n) // n为缓冲区的大小
         return -1;
     }
     len = ntohl(len);
+    if (len > n)
+    {
+        return -1;
+    }
     ret = ssock::Readn(fd, vptr, len);
     if (ret == 0)
     {

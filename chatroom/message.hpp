@@ -20,7 +20,7 @@ public:
         key = "";
         uid = "";
         flag = 0;
-        clnt_fd = 0;
+        serv_fd = 0;
     }
 
     void From_Json(const json &jn, User &user)
@@ -31,7 +31,7 @@ public:
         jn["key"].get_to(user.key);
         jn["uid"].get_to(user.uid);
         jn["flag"].get_to(user.flag);
-        jn["clnt_fd"].get_to(user.clnt_fd);
+        jn["serv_fd"].get_to(user.serv_fd);
     }
     void To_Json(json &jn, const User &user)
     {
@@ -41,7 +41,7 @@ public:
             {"key", user.key},
             {"uid", user.uid},
             {"flag", user.flag},
-            {"clnt_fd", user.clnt_fd},
+            {"serv_fd", user.serv_fd},
         };
     }
     void setName(const string &s)
@@ -84,13 +84,13 @@ public:
     {
         return flag;
     }
-    void setClnt_fd(const int &c)
+    void setServ_fd(const int &c)
     {
-        clnt_fd = c;
+        serv_fd = c;
     }
-    int getClnt_fd()
+    int getServ_fd()
     {
-        return clnt_fd;
+        return serv_fd;
     }
     void print()
     {
@@ -99,7 +99,7 @@ public:
     }
 
 private:
-    int clnt_fd;   //客户端套间字
+    int serv_fd;   //服务器和客户端相连接的套间字套间字
     string uid;    // uid唯一表示一个账号
     string name;   //名字
     string passwd; //密码
@@ -114,6 +114,7 @@ public:
     //好友保存在和发送者同名的map中，其中key为目标uid，value为该好友状态，正常或屏蔽
     privateChat()
     {
+        serv_fd = 0;
         uid = "";
         name = "";
         flag = 0;
@@ -122,11 +123,13 @@ public:
         timeNow = "";
     }
 
-    void get_time()
+    void setServ_fd(const int &s)
     {
-        time_t timeN;
-        time(&timeN);
-        timeNow = ctime(&timeN);
+        serv_fd = s;
+    }
+    int getServ_fd()
+    {
+        return serv_fd;
     }
 
     void setNumber(const string &u)
@@ -171,7 +174,9 @@ public:
     }
     void setTimeNow()
     {
-        get_time();
+        time_t timeN;
+        time(&timeN);
+        timeNow = ctime(&timeN);
     }
     string getTimeNow()
     {
@@ -181,12 +186,13 @@ public:
     void
     From_Json(const json &jn, privateChat &p)
     {
-        jn.at("uid").get_to(p.uid);
+        jn["uid"].get_to(p.uid);
         jn["name"].get_to(p.name);
         jn["flag"].get_to(p.flag);
         jn["friendUid"].get_to(p.friendUid);
         jn["message"].get_to(p.message);
         jn["timeNow"].get_to(p.timeNow);
+        jn["serv_fd"].get_to(p.serv_fd);
     }
     void To_Json(json &jn, const privateChat &p)
     {
@@ -196,10 +202,12 @@ public:
             {"flag", p.flag},
             {"friendUid", p.friendUid},
             {"message", p.message},
-            {"timeNow", p.timeNow}};
+            {"timeNow", p.timeNow},
+            {"serv_fd", p.serv_fd}};
     }
 
 private:
+    int serv_fd;      //服务器和客户端相连接的套间字套间字
     string uid;       //账号
     string name;      //姓名
     int flag;         //操作
