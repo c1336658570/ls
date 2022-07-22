@@ -2,18 +2,36 @@
 #define ACCOUNT_H
 #include <iostream>
 #include <unistd.h>
-#include "jjson.hpp"
+#include <time.h>
+#include "message.hpp"
 #include "ssock.hpp"
 #include "leveldb/db.h"
 using namespace std;
 
-class account
+class clnt
 {
 public:
     //菜单
-    void show_Menu()
+    void show_Menu1();   //登录账号
+    void show_Meun2();   //登录后界面
+    void show_Menu3();   //好友管理
+    void show_Menu4();   //私聊
+    void read_account(); //账号输入
+    void login();        //登录
+    void reg();          //注册
+    void retrieve();     //找回密码
+    void quit();         //退出
+    void addfriend();    //添加好友
+private:
+    int flag; //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
+    User u;   //用户信息，用来登录或注册
+    privateChat pChat;
+};
+
+void clnt::show_Menu1()
+{
+    while (1)
     {
-        int flag = 0; //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
         cout << "请输入你要执行的操作" << endl;
         cout << "1、登陆" << endl;
         cout << "2、注册" << endl;
@@ -25,7 +43,7 @@ public:
             cin.clear();
             cin.ignore(INT32_MAX, '\n');
         }
-        u.setFlag(flag); //设置flag
+        u.setFlag(flag);
         switch (flag)
         {
         case 1:
@@ -42,199 +60,256 @@ public:
             break;
         }
     }
+}
 
-    //账号输入
-    void read_account()
+void clnt::show_Meun2() // 5好友管理，6私聊，7群管理，8群聊，9退出账号
+{
+    flag = 0;
+    cout << "请输入你要执行的操作" << endl; // 5好友管理，6私聊，7群管理，8群聊，9退出账号
+    cout << "5、好友管理" << endl;
+    cout << "6、私聊" << endl;
+    cout << "7、群管理" << endl;
+    cout << "8、群聊" << endl;
+    cout << "9、退出账号" << endl;
+    while (!(cin >> flag) || flag < 5 || flag > 9)
     {
-        string passwd, uid;
-
-        cout << "请输入你的账号，不要超过20个字符" << endl;
-        while (!(cin >> uid) || uid.size() > 20)
-        {
-            cout << "输入有误或账号过长，请重新输入" << endl;
-            cin.clear();
-            cin.ignore(INT32_MAX, '\n');
-        }
-
-        cout << "请输入密码，不要超过20个字符" << endl;
-        while (!(cin >> passwd) || passwd.size() > 20)
-        {
-            cout << "输入有误或密码过长，请重新输入" << endl;
-            cin.clear();
-            cin.ignore(INT32_MAX, '\n');
-        }
-
-        u.setNumber(uid);    //设置账号
-        u.setPasswd(passwd); //设置密码
+        cout << "输入有误" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
     }
 
-    //登录
-    void login()
+    switch (flag)
     {
+    case 5:
+        clnt::show_Menu3();
+        break;
+    case 6:
+        clnt::show_Menu4();
+        break;
+    case 7:
+        break;
+    case 8:
+        break;
+    case 9:
+        break;
+    }
+}
 
-        int clnt_fd = ssock::Socket();
-        ssock::Connect(clnt_fd, 9999, "127.0.0.1");
+void clnt::show_Menu3() //好友管理
+{
+    flag = 0;
+    cout << "请输入要执行的操作" << endl; // 10、添加好友，11删除好友、12、查询好友、13显示好友在线状态、14屏蔽好友消息、15返回上一层
+    cout << "10、添加好友" << endl;
+    cout << "11、删除好友" << endl;
+    cout << "12、查询好友" << endl;
+    cout << "13、显示好友在线状态" << endl;
+    cout << "14、屏蔽好友消息" << endl;
+    cout << "15、返回上一层" << endl;
+    while (!(cin >> flag) || flag < 10 || flag > 15)
+    {
+        cout << "输入有误" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    switch (flag)
+    {
+    case 10:
+        addfriend();
+        break;
+    case 11:
+        break;
+    case 12:
+        break;
+    case 13:
+        break;
+    case 14:
+        break;
+    case 15:
+        break;
+    }
+}
 
-        read_account();
+void clnt::show_Menu4() //私聊
+{
+    cout << "请输入要执行的操作" << endl;
+    cout << "16、查看历史聊天记录" << endl;
+    cout << "17、和好友聊天" << endl;
+    cout << "18、向好友发送文件" << endl;
+}
 
-        //向服务器写数据
-        json jn;
-        u.To_Json(jn, u);
-        string u_jn = jn.dump();
-        uint32_t len = strlen(u_jn.c_str()) + 1;
+//账号输入
+void clnt::read_account()
+{
+    string passwd, uid;
 
-        cout << "len = " << len << u_jn.c_str() << endl;
-
-        len = htonl(len);
-        ssock::Writen(clnt_fd, (void *)&len, sizeof(len));
-        ssock::Writen(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()) + 1);
-
-        char buf[BUFSIZ];
-        //从服务器读，看账号和密码是否正确
-        ssock::Readn(clnt_fd, (void *)&len, sizeof(len));
-        len = ntohl(len);
-        ssock::Readn(clnt_fd, buf, len);
-        if (strncmp(buf, "No", 2) == 0)
-        {
-            cout << "账号或密码错误" << endl;
-        }
-        else
-        {
-            cout << "登录成功" << endl;
-
-            cout << "len = " << len << buf << endl;
-
-            jn = json::parse(buf);
-            u.From_Json(jn, u);
-            u.setClnt_fd(clnt_fd);
-            u.print();
-        }
+    cout << "请输入你的账号，不要超过20个字符" << endl;
+    while (!(cin >> uid) || uid.size() > 20)
+    {
+        cout << "输入有误或账号过长，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
     }
 
-    //注册
-    void reg()
+    cout << "请输入密码，不要超过20个字符" << endl;
+    while (!(cin >> passwd) || passwd.size() > 20)
     {
-        string key, name;
-
-        read_account();
-
-        cout << "请输入你的昵称，不要超过20个字符" << endl;
-        while (!(cin >> name) || name.size() > 20)
-        {
-            cout << "输入有误或昵称过长，请重新输入" << endl;
-            cin.clear(); //清除cin缓冲
-        }
-
-        cout << "请输入密匙，用来找回密码，不要超过20个字符" << endl;
-        while (!(cin >> key) || key.size() > 20)
-        {
-            cout << "输入有误或密码过长，请重新输入" << endl;
-            cin.clear();
-            cin.ignore(INT32_MAX, '\n');
-        }
-        u.setKey(key);   //设置key
-        u.setName(name); //设置昵称
-
-        int clnt_fd = ssock::Socket();
-        ssock::Connect(clnt_fd, 9999, "127.0.0.1");
-
-        //向服务器写数据
-        json jn;
-        u.To_Json(jn, u);
-        string u_jn = jn.dump();
-        uint32_t len = strlen(u_jn.c_str()) + 1;
-
-        cout << "len = " << len << u_jn.c_str() << endl;
-
-        len = htonl(len);
-        ssock::Writen(clnt_fd, (void *)&len, sizeof(len));
-        ssock::Writen(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()) + 1);
-
-        char buf[10];
-        //从服务器读，看是否注册成功
-        ssock::Readn(clnt_fd, (void *)&len, sizeof(len));
-        len = ntohl(len);
-
-        cout << "len = " << len;
-
-        ssock::Readn(clnt_fd, buf, len);
-
-        cout << buf << endl;
-
-        if (strncmp(buf, "No", 2) == 0)
-        {
-            cout << "注册失败，账号已经存在！" << endl;
-        }
-        else
-        {
-            cout << "注册成功！" << endl;
-        }
-        close(clnt_fd);
+        cout << "输入有误或密码过长，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
     }
 
-    //找回密码
-    void retrieve()
+    u.setNumber(uid);    //设置账号
+    u.setPasswd(passwd); //设置密码
+}
+
+void clnt::login() //登录
+{
+
+    int clnt_fd = ssock::Socket();
+    ssock::Connect(clnt_fd, 9999, "127.0.0.1");
+
+    read_account();
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+
+    //向服务器写数据
+    json jn;
+    u.To_Json(jn, u);
+    string u_jn = jn.dump();
+
+    ssock::SendMsg(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()) + 1);
+
+    char buf[BUFSIZ];
+    //从服务器读，看账号和密码是否正确
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+
+    if (strncmp(buf, "No", 2) == 0)
     {
-        string key;
-        string uid;
-        cout << "请输入你的账号，不要超过20个字符" << endl;
-        while (!(cin >> uid) || uid.size() > 20)
-        {
-            cout << "输入有误或账号过长，请重新输入" << endl;
-            cin.clear();
-            cin.ignore(INT32_MAX, '\n');
-        }
-        cout << "请输入你的密匙，不要超过20个字符" << endl;
-        while (!(cin >> key) || key.size() > 20)
-        {
-            cout << "输入有误或密码过长，请重新输入" << endl;
-            cin.clear();
-            cin.ignore(INT32_MAX, '\n');
-        }
-        u.setNumber(uid);
-        u.setKey(key);
+        cout << "账号或密码错误" << endl;
+    }
+    else
+    {
+        cout << "登录成功" << endl;
 
-        int clnt_fd = ssock::Socket();
-        ssock::Connect(clnt_fd, 9999, "127.0.0.1");
+        jn = json::parse(buf);
+        u.From_Json(jn, u);
+        u.print();
+        show_Meun2();
+    }
+}
 
-        //向服务器写数据
-        json jn;
-        u.To_Json(jn, u);
-        string u_jn = jn.dump();
-        uint32_t len = strlen(u_jn.c_str()) + 1;
+//注册
+void clnt::reg()
+{
+    string key, name;
 
-        cout << "len = " << len << u_jn.c_str();
+    read_account();
 
-        len = htonl(len);
-        ssock::Writen(clnt_fd, (void *)&len, sizeof(len));
-        ssock::Writen(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()) + 1);
-
-        char buf[BUFSIZ];
-        //从服务器读，看密码是多少
-        ssock::Readn(clnt_fd, (void *)&len, sizeof(len));
-        len = ntohl(len);
-        ssock::Readn(clnt_fd, buf, len);
-        if (strncmp(buf, "No", 2) == 0)
-        {
-            cout << "找回失败，密匙错误或账号错误" << endl;
-        }
-        else
-        {
-            jn = json::parse(buf);
-            u.From_Json(jn, u);
-            cout << "找回成功，密码为：" << u.getPasswd() << endl;
-        }
-        close(clnt_fd);
+    cout << "请输入你的昵称，不要超过20个字符" << endl;
+    while (!(cin >> name) || name.size() > 20)
+    {
+        cout << "输入有误或昵称过长，请重新输入" << endl;
+        cin.clear(); //清除cin缓冲
     }
 
-    //退出
-    void quit()
+    cout << "请输入密匙，用来找回密码，不要超过20个字符" << endl;
+    while (!(cin >> key) || key.size() > 20)
     {
-        exit(0);
+        cout << "输入有误或密码过长，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
     }
+    u.setKey(key);   //设置key
+    u.setName(name); //设置昵称
 
-private:
-    User u; //用户信息，用来登录或注册
-};
+    int clnt_fd = ssock::Socket();
+    ssock::Connect(clnt_fd, 9999, "127.0.0.1");
+
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+
+    //向服务器写数据
+    json jn;
+    u.To_Json(jn, u);
+    string u_jn = jn.dump();
+
+    ssock::SendMsg(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()) + 1);
+
+    char buf[10];
+    //从服务器读，看是否注册成功
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+
+    cout << buf << endl;
+
+    if (strncmp(buf, "No", 2) == 0)
+    {
+        cout << "注册失败，账号已经存在！" << endl;
+    }
+    else
+    {
+        cout << "注册成功！" << endl;
+    }
+    close(clnt_fd);
+}
+
+void clnt::retrieve() //找回密码
+{
+    string key;
+    string uid;
+    cout << "请输入你的账号，不要超过20个字符" << endl;
+    while (!(cin >> uid) || uid.size() > 20)
+    {
+        cout << "输入有误或账号过长，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cout << "请输入你的密匙，不要超过20个字符" << endl;
+    while (!(cin >> key) || key.size() > 20)
+    {
+        cout << "输入有误或密码过长，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    u.setNumber(uid);
+    u.setKey(key);
+
+    int clnt_fd = ssock::Socket();
+    ssock::Connect(clnt_fd, 9999, "127.0.0.1");
+
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+
+    //向服务器写数据
+    json jn;
+    u.To_Json(jn, u);
+    string u_jn = jn.dump();
+
+    ssock::SendMsg(clnt_fd, u_jn.c_str(), strlen(u_jn.c_str()) + 1);
+
+    char buf[BUFSIZ];
+    //从服务器读，看密码是多少
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    if (strncmp(buf, "No", 2) == 0)
+    {
+        cout << "找回失败，密匙错误或账号错误" << endl;
+    }
+    else
+    {
+        jn = json::parse(buf);
+        u.From_Json(jn, u);
+        cout << "找回成功，密码为：" << u.getPasswd() << endl;
+    }
+    close(clnt_fd);
+}
+
+void clnt::quit() //退出
+{
+    exit(0);
+}
+
+//添加好友
+void clnt::addfriend()
+{
+    cout << "请输入你要添加的好友的uid" << endl;
+}
 
 #endif

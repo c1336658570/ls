@@ -2,7 +2,7 @@
 
 int main(void)
 {
-    serv1 s;
+    serv s;
     s.connectClient();
 
     return 0;

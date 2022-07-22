@@ -64,7 +64,7 @@ public:
         redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
         return r;
     }
-    static redisReply *gethash(redisContext *c, const string &key, const string &field)
+    static redisReply *hgethash(redisContext *c, const string &key, const string &field)
     {
         string cmd = "hget " + key + " " + field;
         redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());

@@ -21,6 +21,8 @@ public:
     static ssize_t Write(int fd, const void *ptr, size_t nbytes);
     static ssize_t Readn(int fd, void *vptr, size_t n);
     static ssize_t Writen(int fd, const void *vptr, size_t n);
+    static ssize_t ReadMsg(int fd, void *vptr, size_t n);
+    static ssize_t SendMsg(int fd, const void *vptr, size_t n);
 };
 
 void ssock::perr_exit(const string s)
@@ -181,5 +183,40 @@ ssize_t ssock::Writen(int fd, const void *buffer, size_t n)
         buf += numWritten;
     }
     return totWritten;
+}
+
+ssize_t ssock::ReadMsg(int fd, void *vptr, size_t n) // n为缓冲区的大小
+{
+    int ret;
+    uint32_t len = 0;
+    ret = ssock::Readn(fd, (void *)&len, sizeof(len));
+    if (ret == 0)
+    {
+        return 0;
+    }
+    else if (ret == -1)
+    {
+        return -1;
+    }
+    len = ntohl(len);
+    ret = ssock::Readn(fd, vptr, len);
+    if (ret == 0)
+    {
+        return 0;
+    }
+    else if (ret == -1)
+    {
+        return -1;
+    }
+    return ret;
+}
+ssize_t ssock::SendMsg(int fd, const void *vptr, size_t n) // n为要发送的字节大小
+{
+    int ret = 0;
+    uint32_t len = n;
+    len = htonl(len);
+    Writen(fd, (void *)&len, sizeof(len));
+    ret = Writen(fd, vptr, n);
+    return ret;
 }
 #endif
