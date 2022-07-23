@@ -108,7 +108,7 @@ int main(void)
                     task.function = startlogin;
                     pool.addTask(task);
                 }
-                else if (flag >= 10 && flag <= 14)
+                else if (flag >= 9 && flag <= 18)
                 {
                     pthread_mutex_lock(&(g.getMutex()));
                     g.getpChat().setServ_fd(sock);

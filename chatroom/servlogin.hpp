@@ -37,10 +37,15 @@ public:
     User &getUser();           //获得u这个对象
     pthread_mutex_t &getMutex();
 
+    // void setfriendfd(const string &s, const int &f); //设置用户名和fd
+    // map<string, int> &getfriendfd();                 //获取用户名和fd
+
 private:
     pthread_mutex_t mutex; //定义锁
     int efd;               //监听红黑书根节点，用于将文件描述符挂上树
     User u;                //用户信息
+    //在数据库中实现了
+    // map<string, int> friendfd; //保存用户名和fd
 };
 
 account::account()
@@ -63,7 +68,18 @@ void startlogin(void *arg)
     pthread_mutex_unlock(&(((account *)arg)->getMutex()));
     if ((s.getUser()).getFlag() == 1)
     {
+        // bool ret =
         s.login();
+        /*
+        在数据库中实现在线用户的添加
+        if (ret == true)
+        {
+            //将登录成功的fd加入到map中，必须用s的User对象中的Number和serv_fd，
+            //因为在主线程中没有读取number只是设置了efd和serv_fd，number为空，serv_fd也可能在后续的代码逻辑中被修改
+            (*((account *)arg)).setfriendfd(s.getUser().getNumber(), s.getUser().getServ_fd());
+            cout << "serv_fd = " << (*((account *)arg)).getfriendfd().at(s.getUser().getNumber()) << endl;
+        }
+        */
     }
     else if ((s.getUser()).getFlag() == 2)
     {
@@ -88,14 +104,15 @@ bool account::login()
     cout << buf << endl;
 
     jn = json::parse(buf);
-    u.From_Json(jn, u); //将会修改U中本来的内容，导致u中的文件描述符改变
-    u.setServ_fd(clnt_sock);
+    u.From_Json(jn, u);      //将会修改U中本来的内容，导致u中的文件描述符改变
+    u.setServ_fd(clnt_sock); //重新设置u中的serv_fd
 
     //打开数据库
     redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
     //查找与Number同名的哈希表，在map中查找密码，如果秘密相同返回该用户所有信息，
     //密码不同返回No
     redisReply *r = Redis::hgethash(c, "account", u.getNumber());
+
     if (r == NULL)
     {
         printf("Execut getValue failure\n");
@@ -113,17 +130,29 @@ bool account::login()
     }
     json jn2 = json::parse(r->str);
     User u2;
-    u.From_Json(jn2, u2);
+    u2.From_Json(jn2, u2);
     if (u2.getPasswd() == u.getPasswd())
     {
         ssock::SendMsg(clnt_sock, r->str, r->len + 1);
         freeReplyObject(r);
+
+        //将在线用户添加到数据库中，key为在线用户，value为在线用户的套间字和uid
+        friends fri;
+        json jn3;
+        fri.setfriendUid(u.getNumber()); //在线用户id
+        fri.setflag(u.getServ_fd());     //在线用户的套间字
+        fri.To_Json(jn3, fri);
+        r = Redis::hsetValue(c, "Onlineuser", u.getNumber(), jn3.dump());
         redisFree(c);
 
         //执行完登录后将文件描述符挂上监听红黑树
         ep.events = EPOLLIN | EPOLLET;
         ep.data.fd = clnt_sock;
         int ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+        if (ret == -1)
+        {
+            ssock::perr_exit("epoll_ctr error");
+        }
 
         return true;
     }
@@ -207,7 +236,7 @@ void account::retrieve()
     }
     json jn2 = json::parse(r->str);
     User u2;
-    u.From_Json(jn2, u2);
+    u2.From_Json(jn2, u2);
 
     if ((u2.getKey() == u.getKey()) && (u2.getNumber() == u.getNumber()))
     {
@@ -234,6 +263,16 @@ User &account::getUser()
     return u;
 }
 
+/*
+void account::setfriendfd(const string &s, const int &f) //设置用户名和fd
+{
+    friendfd.insert(pair<string, int>(s, f));
+}
+map<string, int> &account::getfriendfd() //获取用户名和fd
+{
+    return friendfd;
+}
 
+*/
 
 #endif

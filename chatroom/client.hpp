@@ -8,20 +8,26 @@
 #include "leveldb/db.h"
 using namespace std;
 
+void *chat_recv_friend(void *arg); //接受好友消息的线程
+
 class clnt
 {
 public:
     //菜单
-    void show_Menu1();   //登录账号
-    void show_Meun2();   //登录后界面
-    void show_Menu3();   //好友管理
-    void show_Menu4();   //私聊
-    void read_account(); //账号输入
-    void login();        //登录
-    void reg();          //注册
-    void retrieve();     //找回密码
-    void quit();         //退出
-    void addFriend();    //添加好友
+    void show_Menu1();       //登录账号
+    void show_Meun2();       //登录后界面
+    void show_Menu3();       //好友管理
+    void show_Menu4();       //私聊菜单
+    int getclntfd();         //获取客户端套间字
+    void read_account();     //账号输入
+    void login();            // 1登录
+    void reg();              // 2注册
+    void retrieve();         // 3找回密码
+    void quit();             // 4退出
+    void addFriend();        // 10添加好友
+    void chat_send_friend(); //给好友发消息
+    void signout();          // 9退出登录
+
 private:
     uint32_t flag;     //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
     User u;            //用户信息，用来登录或注册
@@ -234,6 +240,11 @@ void clnt::quit() //退出
     exit(0);
 }
 
+int clnt::getclntfd() //获取客户端套间字
+{
+    return clnt_fd;
+}
+
 void clnt::show_Meun2() // 5好友管理，6私聊，7群管理，8群聊，9退出账号
 {
     while (1)
@@ -244,7 +255,7 @@ void clnt::show_Meun2() // 5好友管理，6私聊，7群管理，8群聊，9退
         cout << "6、私聊" << endl;
         cout << "7、群管理" << endl;
         cout << "8、群聊" << endl;
-        cout << "9、退出账号" << endl;
+        cout << "9、退出登录" << endl;
         while (!(cin >> flag) || flag < 5 || flag > 9)
         {
             cout << "输入有误" << endl;
@@ -264,10 +275,27 @@ void clnt::show_Meun2() // 5好友管理，6私聊，7群管理，8群聊，9退
         case 8:
             break;
         case 9:
-            quit();
+            signout();
             break;
         }
     }
+}
+
+void clnt::signout() // 9退出登录
+{
+    json jn;
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+    pChat.setFlag(flag);            //设置自己的操作
+
+    pChat.To_Json(jn, pChat); //将类转为序列
+
+    flag = htonl(flag);
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+    close(clnt_fd);
+    exit(0);
 }
 
 void clnt::show_Menu3() //好友管理
@@ -339,6 +367,10 @@ void clnt::addFriend()
     {
         cout << "你添加的好友不存在" << endl;
     }
+    else if (strcmp(buf, "Has user") == 0)
+    {
+        cout << "你添加的好友已经存在" << endl;
+    }
     else
     {
         cout << "添加成功" << endl;
@@ -347,10 +379,98 @@ void clnt::addFriend()
 
 void clnt::show_Menu4() //私聊
 {
-    cout << "请输入要执行的操作" << endl;
-    cout << "16、查看历史聊天记录" << endl;
-    cout << "17、和好友聊天" << endl;
-    cout << "18、向好友发送文件" << endl;
+    while (1)
+    {
+        flag = 0;
+        cout << "请输入要执行的操作" << endl;
+        cout << "16、查看历史聊天记录" << endl;
+        cout << "17、和好友聊天" << endl;
+        cout << "18、向好友发送文件" << endl;
+        cout << "19、返回上一级" << endl;
+
+        while (!(cin >> flag) || flag < 10 || flag > 15)
+        {
+            cout << "输入有误" << endl;
+            cin.clear();
+            cin.ignore(INT32_MAX, '\n');
+        }
+        pChat.setFlag(flag);
+        if (flag == 19)
+        {
+            break;
+        }
+        switch (flag)
+        {
+        case 16:
+
+            break;
+        case 17:
+            chat_send_friend();
+            break;
+        case 18:
+            break;
+        }
+    }
+}
+
+void clnt::chat_send_friend()
+{
+    while (1)
+    {
+        pthread_t tid;
+        char buf[BUFSIZ];
+        json jn;
+        string message;
+        string friendUid;
+        cout << "请输入你要发送的消息" << endl;
+        cin >> message;
+        cout << "请输入你要发送消息的uid" << endl;
+        cin >> friendUid;
+
+        pChat.setNumber(u.getNumber()); //设置自己的uid
+        pChat.setName(u.getName());     //设置自己的姓名
+        pChat.setFriendUid(friendUid);  //设置好友uid
+        pChat.setTimeNow();             //设置时间
+        pChat.setMessage(message);
+
+        pthread_create(&tid, NULL, chat_recv_friend, &clnt_fd);
+        pthread_detach(tid);
+
+        if (pChat.getNumber() == friendUid)
+        {
+            cout << "不可以给自己发消息" << endl;
+            return;
+        }
+
+        pChat.To_Json(jn, pChat); //将类转为序列
+
+        flag = htonl(flag);
+        ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+        ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将序列发给服务器
+        ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    }
+}
+
+void *chat_recv_friend(void *arg) //接受好友消息的线程
+{
+    json jn;
+    privateChat pChat;
+
+    char buf[BUFSIZ];
+    int clnt_fd = *((int *)arg);
+    while (1)
+    {
+        ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+        jn = json::parse(buf);
+        pChat.From_Json(jn, pChat);
+        cout << pChat.getTimeNow() << endl
+             << pChat.getName() << endl
+             << pChat.getMessage() << endl;
+    }
+}
+
+void continue_receive(void *arg)
+{
 }
 
 #endif

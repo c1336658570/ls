@@ -216,6 +216,44 @@ private:
     string timeNow;   //当前时间
 };
 
+//朋友信息类
+class friends //用来保存好友信息，好友uid，加好友权限
+{
+public:
+    void From_Json(const json &jn, friends &f)
+    {
+        jn["friendUid"].get_to(f.friendUid);
+        jn["flag"].get_to(f.flag);
+    }
+    void To_Json(json &jn, const friends &f)
+    {
+        jn = json{
+            {"friendUid", f.friendUid},
+            {"flag", f.flag}};
+    }
+
+    void setfriendUid(const string &f)
+    {
+        friendUid = f;
+    }
+    string getfriendUid()
+    {
+        return friendUid;
+    }
+    void setflag(const int &f)
+    {
+        flag = f;
+    }
+    int getflag()
+    {
+        return flag;
+    }
+
+private:
+    string friendUid; // 1、朋友的Uid  2、在线用户的uid
+    int flag;         // 1、好友的状态0屏蔽，1正常   2、在线用户的套间字
+};
+
 //群聊类
 class groupChat
 {
