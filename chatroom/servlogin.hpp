@@ -181,7 +181,7 @@ bool account::login()
         ssock::SendMsg(clnt_sock, "No", 2);
         freeReplyObject(r);
         redisFree(c);
-        close(u.getServ_fd());
+        close(u.getServ_fd()); //登录失败关闭套间字
         return false;
     }
 }

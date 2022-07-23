@@ -16,6 +16,17 @@ void testhgetall()
         cout << r->element[i]->str << endl;
 
     freeReplyObject(r);
+
+    r = Redis::hgethash(c, "account", "123");
+    if (r->type != REDIS_REPLY_STRING)
+    {
+        printf("Execut hgethash failure\n");
+        cout << "2" << endl;
+        freeReplyObject(r);
+        redisFree(c);
+        return;
+    }
+    cout << r->str << endl;
 }
 
 int main(void)
