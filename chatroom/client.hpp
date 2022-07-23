@@ -118,6 +118,10 @@ void clnt::login() //登录
     {
         cout << "账号或密码错误" << endl;
     }
+    else if (strncmp(buf, "has online", strlen("has online")) == 0)
+    {
+        cout << "你已经登录过了" << endl;
+    }
     else
     {
         cout << "登录成功" << endl;
@@ -171,13 +175,11 @@ void clnt::reg()
 
     ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
 
-    cout << buf << endl;
-
     if (strncmp(buf, "No", 2) == 0)
     {
         cout << "注册失败，账号已经存在！" << endl;
     }
-    else
+    else if (strncmp(buf, "Yes", 3) == 0)
     {
         cout << "注册成功！" << endl;
     }

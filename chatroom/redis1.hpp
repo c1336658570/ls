@@ -76,6 +76,12 @@ public:
         redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
         return r;
     }
+    static redisReply *hgethashall(redisContext *c, const string &key)
+    {
+        string cmd = "hgetall " + key;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
 };
 
 #endif

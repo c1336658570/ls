@@ -2,6 +2,22 @@
 #include "redis1.hpp"
 using namespace std;
 
+void testhgetall()
+{
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r = Redis::hgethashall(c, "account");
+    if (r == NULL)
+    {
+        printf("Execut getValue failure\n");
+        redisFree(c);
+        return;
+    }
+    for (int i = 0; i < r->elements; ++i)
+        cout << r->element[i]->str << endl;
+
+    freeReplyObject(r);
+}
+
 int main(void)
 {
     redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
@@ -60,6 +76,8 @@ int main(void)
     freeReplyObject(r);
 
     redisFree(c);
+
+    testhgetall();
 
     return 0;
 }

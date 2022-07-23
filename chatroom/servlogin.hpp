@@ -109,14 +109,34 @@ bool account::login()
 
     //打开数据库
     redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    //在在线用户中查找看有没有当前用户，如果有登录失败，否则继续判断
+    redisReply *r = Redis::hsetexist(c, "Onlineuser", u.getNumber());
+    if (r == NULL)
+    {
+        printf("Execut getValue failure\n");
+        redisFree(c);
+        close(clnt_sock); //登录失败，关闭套间字
+        return false;
+    }
+    if (r->integer == 1)
+    {
+        ssock::SendMsg(clnt_sock, "has online", strlen("has online") + 1);
+        freeReplyObject(r);
+        redisFree(c);
+        close(clnt_sock); //登录失败，关闭套间字
+        return false;
+    }
+    freeReplyObject(r);
+
     //查找与Number同名的哈希表，在map中查找密码，如果秘密相同返回该用户所有信息，
     //密码不同返回No
-    redisReply *r = Redis::hgethash(c, "account", u.getNumber());
+    r = Redis::hgethash(c, "account", u.getNumber());
 
     if (r == NULL)
     {
         printf("Execut getValue failure\n");
         redisFree(c);
+        close(clnt_sock); //登录失败，关闭套间字
         return false;
     }
     if (r->type != REDIS_REPLY_STRING)
@@ -125,7 +145,7 @@ bool account::login()
         freeReplyObject(r);
         redisFree(c);
         ssock::SendMsg(clnt_sock, "No", 2);
-        close(clnt_sock);
+        close(clnt_sock); //登录失败，关闭套间字
         return false;
     }
     json jn2 = json::parse(r->str);
@@ -145,7 +165,7 @@ bool account::login()
         r = Redis::hsetValue(c, "Onlineuser", u.getNumber(), jn3.dump());
         redisFree(c);
 
-        //执行完登录后将文件描述符挂上监听红黑树
+        //登录成功后将文件描述符挂上监听红黑树
         ep.events = EPOLLIN | EPOLLET;
         ep.data.fd = clnt_sock;
         int ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);

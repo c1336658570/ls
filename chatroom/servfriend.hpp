@@ -17,6 +17,49 @@
 #include "threadpool.hpp"
 using namespace std;
 
+void qqqqquit(int clnt_sock) //将其从在线用户中删除
+{
+    json jn;
+    friends fri;
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r = Redis::hgethashall(c, "Onlineuser"); //获取所有在线用户
+    if (r == NULL)
+    {
+        printf("Execut getValue failure\n");
+        redisFree(c);
+        return;
+    }
+    for (int i = 0; i < r->elements; ++i) //遍历在线用户
+    {
+        if (i % 2 == 1) //偶数是key，奇数是value
+        {
+            jn = json::parse(r->element[i]->str); //将获得的value序列化
+            fri.From_Json(jn, fri);
+            if (fri.getflag() == clnt_sock) //将value中的套间字和clnt_sock比较，相同就删除该用户
+            {
+                freeReplyObject(r);
+                r = Redis::hashdel(c, "Onlineuser", fri.getfriendUid());
+                if (r == NULL)
+                {
+                    printf("Execut getValue failure\n");
+                    redisFree(c);
+                    return;
+                }
+                if (r->integer == 0)
+                {
+                    cout << "下线失败" << endl;
+                }
+                break;
+            }
+        }
+    }
+
+    freeReplyObject(r);
+
+    //将通过ctrl+c退出的程序从在线用户中删除，不需要close文件描述符，主函数已经做了
+    redisFree(c);
+}
+
 class gay
 {
 public:
@@ -128,46 +171,47 @@ void gay::addFriend()
 
     redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
     redisReply *r = Redis::hsetexist(c, pChat.getNumber() + "friend", pChat.getFriendUid()); //判断好友是否已经在好友列表
-    if (r == NULL)
+    do
     {
-        printf("Execut getValue failure\n");
-        redisFree(c);
-        return;
-    }
-    if (r->integer == 1)
-    {
-        printf("已经是好友\n");
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            break;
+        }
+        if (r->integer == 1)
+        {
+            printf("已经是好友\n");
+            freeReplyObject(r);
+            ssock::SendMsg(clnt_sock, "Has user", strlen("Has user") + 1); //添加失败，已经是好友
+            break;
+        }
         freeReplyObject(r);
-        ssock::SendMsg(clnt_sock, "Has user", strlen("Has user") + 1); //添加失败，已经是好友
-        redisFree(c);
-        return;
-    }
-    freeReplyObject(r);
-    r = Redis::hsetexist(c, "account", pChat.getFriendUid()); //判断账号列表是否有这个人
-    if (r == NULL)
-    {
-        printf("Execut getValue failure\n");
-        redisFree(c);
-        return;
-    }
-    if (r->integer == 0)
-    {
-        printf("该账号数据库中没有\n");
-        freeReplyObject(r);
-        ssock::SendMsg(clnt_sock, "No user", strlen("No user") + 1); //添加失败，数据库没有该用户
-    }
-    else
-    {
-        ssock::SendMsg(clnt_sock, "Added successfully", strlen("Added successfully") + 1);
-        freeReplyObject(r);
-        fri.setflag(1);                         //设置朋友的权限
-        fri.setfriendUid(pChat.getFriendUid()); //设置朋友的uid
-        fri.To_Json(jn, fri);                   //将fri转换为json
+        r = Redis::hsetexist(c, "account", pChat.getFriendUid()); //判断账号列表是否有这个人
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            break;
+        }
+        if (r->integer == 0)
+        {
+            printf("该账号数据库中没有\n");
+            freeReplyObject(r);
+            ssock::SendMsg(clnt_sock, "No user", strlen("No user") + 1); //添加失败，数据库没有该用户
+        }
+        else
+        {
+            ssock::SendMsg(clnt_sock, "Added successfully", strlen("Added successfully") + 1);
+            freeReplyObject(r);
+            fri.setflag(1);                         //设置朋友的权限
+            fri.setfriendUid(pChat.getFriendUid()); //设置朋友的uid
+            fri.To_Json(jn, fri);                   //将fri转换为json
 
-        //将转换后的字符串写入数据库
-        r = Redis::hsetValue(c, pChat.getNumber() + "friend", fri.getfriendUid(), jn.dump()); // 1表示正常，0表示屏蔽
-        freeReplyObject(r);
-    }
+            //将转换后的字符串写入数据库
+            r = Redis::hsetValue(c, pChat.getNumber() + "friend", fri.getfriendUid(), jn.dump()); // 1表示正常，0表示屏蔽
+            freeReplyObject(r);
+        }
+
+    } while (0);
     redisFree(c);
 
     //执行完添加后将文件描述符挂上监听红黑树

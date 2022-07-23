@@ -87,7 +87,8 @@ int main(void)
                     {
                         ssock::perr_exit("epoll_ctr error");
                     }
-                    close(sock); //关闭与该客户端的链接
+                    qqqqquit(sock); //将其从在线用户中删除
+                    close(sock);    //关闭与该客户端的链接
                     continue;
                 }
                 flag = ntohl(flag);
