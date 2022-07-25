@@ -92,6 +92,7 @@ public:
     {
         return serv_fd;
     }
+    
     void print()
     {
         cout << "账号：" << uid << endl
@@ -177,6 +178,8 @@ public:
         time_t timeN;
         time(&timeN);
         timeNow = ctime(&timeN);
+        for (int i = 0; i < 4; ++i)
+            timeNow[timeNow.find(' ')] = '-';
     }
     string getTimeNow()
     {

@@ -82,6 +82,42 @@ public:
         redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
         return r;
     }
+    static redisReply *listlpush(redisContext *c, const string &key, const string &value)
+    {
+        string cmd = "lpush " + key + " " + value;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
+    static redisReply *listrpush(redisContext *c, const string &key, const string &value)
+    {
+        string cmd = "rpush " + key + " " + value;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
+    static redisReply *listlrange(redisContext *c, const string &key, const string &i, const string &j)
+    {
+        string cmd = "lrange " + key + " " + i + " " + j;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
+    static redisReply *listlen(redisContext *c, const string &key)
+    {
+        string cmd = "llen " + key;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
+    static redisReply *listlpop(redisContext *c, const string &key)
+    {
+        string cmd = "lpop " + key;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
+    static redisReply *listrpop(redisContext *c, const string &key)
+    {
+        string cmd = "rpop " + key;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
 };
 
 #endif

@@ -29,6 +29,26 @@ void testhgetall()
     cout << r->str << endl;
 }
 
+void lrangetest()
+{
+    string a = "123";
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r = Redis::listlrange(c, a + "history" + "1", "0", "-1");
+    cout << a + "history" + "1" << endl;
+    cout << 1 << endl;
+    if (r == NULL)
+    {
+        printf("Execut getValue failure\n");
+        redisFree(c);
+        return;
+    }
+    for (int i = 0; i < r->elements; ++i)
+    {
+        cout << r->element[i]->str << endl;
+        cout << "####################################" << endl;
+    }
+}
+
 int main(void)
 {
     redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
@@ -64,7 +84,7 @@ int main(void)
 
     freeReplyObject(r);
 
-    r = Redis::hgethash(c, "info", "456");
+    r = Redis::hgethash(c, "info", "123");
     if (r == NULL)
     {
         cout << "111";
@@ -94,6 +114,7 @@ int main(void)
     redisFree(c);
 
     // testhgetall();
+    lrangetest();
 
     return 0;
 }

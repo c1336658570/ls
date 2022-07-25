@@ -9,6 +9,7 @@
 using namespace std;
 
 void *chat_recv_friend(void *arg); //接受好友消息的线程
+void *continue_receive(void *arg); //持续从服务器读数据的线程
 
 class clnt
 {
@@ -30,6 +31,7 @@ public:
     void findFriend();       // 12查询好友
     void onlineStatus();     // 13显示好友在线情况
     void blockFriend();      // 14屏蔽好友消息
+    void history_message();  // 16历史聊天记录
     void chat_send_friend(); // 17给好友发消息
 
 private:
@@ -128,11 +130,15 @@ void clnt::login() //登录
     }
     else
     {
+        pthread_t tid;
         cout << "登录成功" << endl;
 
         jn = json::parse(buf);
         u.From_Json(jn, u);
         u.print();
+        pChat.setNumber(u.getNumber());                               //在此处设置number，一直读消息的线程需要使用
+        pthread_create(&tid, NULL, continue_receive, (void *)&pChat); //创建一个接受消息的线程
+        pthread_detach(tid);                                          //设置线程分离
         show_Meun2();
     }
 }
@@ -553,15 +559,58 @@ void clnt::show_Menu4() //私聊
         }
         switch (flag)
         {
-        case 16:
-
+        case 16: //历史聊天记录
+            history_message();
             break;
         case 17:
-            chat_send_friend();
+            chat_send_friend(); //和好友聊天
             break;
         case 18:
             break;
         }
+    }
+}
+
+// 16查看历史聊天记录
+void clnt::history_message()
+{
+    int ret;
+    string number;
+    json jn;
+    char buf[BUFSIZ];
+
+    cout << "请输入你要查看uid" << endl;
+    while (!(cin >> number) || number.size() > 20)
+    {
+        cout << "输入有误或账号过长，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setFriendUid(number);     //设置要查看的历史聊天记录的对方uid
+
+    pChat.To_Json(jn, pChat);
+
+    flag = htonl(flag);
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, (void *)jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    while (1)
+    {
+        ret = ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+        if (ret == 0)
+        {
+            continue;
+        }
+        if (strcmp(buf, "finish") == 0)
+        {
+            break;
+        }
+        jn = json::parse(buf);
+        pChat.From_Json(jn, pChat);
+        cout << pChat.getTimeNow()
+             << pChat.getNumber() << "："
+             << pChat.getMessage() << endl;
     }
 }
 
@@ -573,17 +622,20 @@ void clnt::chat_send_friend()
     string message;
     string friendUid;
 
-    pthread_create(&tid, NULL, chat_recv_friend, &clnt_fd); //创建一个接受消息的线程
-    pthread_detach(tid);                                    //设置线程分离
-
     cout << "请输入你要发送消息的uid" << endl;
     cin >> friendUid;
-    pChat.setFriendUid(friendUid); //设置好友uid
     if (u.getNumber() == friendUid)
     {
         cout << "不可以给自己发消息" << endl;
         return;
     }
+
+    pChat.setFriendUid(friendUid);                                //设置好友的uid
+    pChat.setNumber(u.getNumber());                               //设置自己的uid
+    pChat.setName(u.getName());                                   //设置自己的姓名
+    pChat.setServ_fd(clnt_fd);                                    //设置自己套间字，为了传给接受消息的线程，让接收消息的线程使用
+    pthread_create(&tid, NULL, chat_recv_friend, (void *)&pChat); //创建一个接受消息的线程
+    pthread_detach(tid);                                          //设置线程分离
     cout << "输入exit退出" << endl;
 
     flag = htonl(flag);
@@ -593,9 +645,7 @@ void clnt::chat_send_friend()
     {
         cin >> message;
 
-        pChat.setNumber(u.getNumber()); //设置自己的uid
-        pChat.setName(u.getName());     //设置自己的姓名
-        pChat.setTimeNow();             //设置时间
+        pChat.setTimeNow(); //设置时间
         pChat.setMessage(message);
 
         pChat.To_Json(jn, pChat); //将类转为序列
@@ -609,11 +659,13 @@ void clnt::chat_send_friend()
 void *chat_recv_friend(void *arg) //聊天中接受好友消息的线程
 {
     json jn;
-    privateChat pChat;
+    privateChat pChat = *((privateChat *)arg);
 
     char buf[BUFSIZ];
-    int clnt_fd = *((int *)arg);
+    int clnt_fd = pChat.getServ_fd();
+    string number = pChat.getFriendUid(); //确保消息是我要聊天的好友发送过来的，如果不是我要聊天的好友发送过来的，就将其添加到聊天的历史记录里面
     int ret;
+    int i = 0;
     while (1)
     {
         ret = ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
@@ -632,16 +684,60 @@ void *chat_recv_friend(void *arg) //聊天中接受好友消息的线程
         {
             break;
         }
-        cout << pChat.getTimeNow()
-             << pChat.getName() << endl
-             << pChat.getMessage() << endl;
+        if (number == pChat.getNumber())
+            cout << pChat.getTimeNow()
+                 << pChat.getNumber() << endl
+                 << pChat.getMessage() << endl;
+        else
+        {
+            cout << "你收到了" << pChat.getNumber() << "的消息" << endl;
+        }
     }
 
     return NULL;
 }
 
-void continue_receive(void *arg)
+//每隔1s向服务器发送100，然后读取信息
+void *continue_receive(void *arg)
 {
+    privateChat &pChat = *((privateChat *)arg);
+
+    char buf[BUFSIZ];
+    json jn;
+    privateChat pChat2;
+    int clnt_fd = ssock::Socket();
+    ssock::Connect(clnt_fd, 9999, "127.0.0.1");
+
+    while (1)
+    {
+        uint32_t flag = 100;
+        flag = htonl(flag);
+        ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+        //将自己的uid发送给客户端
+        ssock::SendMsg(clnt_fd, (void *)pChat.getNumber().c_str(), strlen(pChat.getNumber().c_str()) + 1);
+        int ret = ssock::ReadMsg(clnt_fd, buf, sizeof(buf)); //从客户端读数据
+        if (ret == 0)
+        {
+            close(clnt_fd);
+        }
+        if (strcmp(buf, "finish") == 0)
+        {
+            continue;
+        }
+        jn = json::parse(buf);
+        pChat2.From_Json(jn, pChat2);
+        if (pChat2.getMessage() == "exit")
+        {
+            pChat.setFlag(1);
+            continue;
+        }
+        cout << "flag = " << flag << endl
+             << "pChat.getflag = " << pChat.getFlag();
+        if (pChat.getFlag() != 17) // flag不等于17，即客户端没有进入聊天，其他人发的连天消息写入到一个列表里，客户端通过该线程读取
+        {
+            cout << "你收到了来自" << pChat2.getNumber() << "的一条消息" << endl;
+        }
+    }
 }
 
 #endif

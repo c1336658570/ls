@@ -89,6 +89,7 @@ int main(void)
                     }
                     qqqqquit(sock); //将其从在线用户中删除
                     close(sock);    //关闭与该客户端的链接
+                    cout << sock << "关闭";
                     continue;
                 }
                 flag = ntohl(flag);
@@ -97,6 +98,16 @@ int main(void)
                 if (ret == -1)
                 {
                     ssock::perr_exit("epoll_ctr error");
+                }
+
+                if (flag == 100)
+                {
+                    pthread_mutex_lock(&(g.getMutex()));
+                    pthread_t tid;
+                    g.getpChat().setServ_fd(sock);
+                    g.getpChat().setFlag(flag);
+                    pthread_create(&tid, NULL, continue_send, (void *)&g);
+                    pthread_detach(tid);
                 }
 
                 if (flag >= 1 && flag <= 3)
@@ -125,6 +136,3 @@ int main(void)
 
     return 0;
 }
-
-//登录后将该用户插入到map容器中
-// friends.insert(pair<string, int>(u.getNumber(), clnt_sock));

@@ -75,6 +75,8 @@ public:
 
     privateChat &getpChat();     //得到pChat对象
     pthread_mutex_t &getMutex(); //获得锁
+    int getefd();                //获得根节点
+    void history_message();      // 16查看历史聊天记录
     void talkwithfriends();      // 17和朋友聊天
 
 private:
@@ -125,6 +127,7 @@ void startpchat(void *arg)
     }
     else if ((g.getpChat().getFlag() == 16)) // 16查看历史聊天记录
     {
+        g.history_message();
     }
     else if (g.getpChat().getFlag() == 17) // 17和好友聊天
     {
@@ -138,6 +141,10 @@ void startpchat(void *arg)
 void gay::setEfd(const int &e)
 {
     efd = e;
+}
+int gay::getefd()
+{
+    return efd;
 }
 
 void gay::signout() // 9退出登录
@@ -485,6 +492,44 @@ pthread_mutex_t &gay::getMutex() //获得锁
     return mutex;
 }
 
+// 16查看历史聊天记录
+void gay::history_message()
+{
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd();
+    char buf[BUFSIZ];
+    json jn;
+
+    ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    jn = json::parse(buf);
+    pChat.From_Json(jn, pChat);  //会修改pChat中本来的套间字的值
+    pChat.setServ_fd(clnt_sock); //将套间字的值修改回去
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r = Redis::listlrange(c, pChat.getNumber() + "history" + pChat.getFriendUid(), "0", "-1");
+    if (r == NULL)
+    {
+        printf("Execut getValue failure\n");
+        redisFree(c);
+    }
+    for (int i = 0; i < r->elements; ++i) //遍历消息记录
+    {
+        cout << r->element[i]->str << endl;
+        cout << strlen(r->element[i]->str) + 1;
+        ssock::SendMsg(clnt_sock, r->element[i]->str, strlen(r->element[i]->str) + 1);
+    }
+    ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    int ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+}
+
 // 17和好友聊天
 void gay::talkwithfriends()
 {
@@ -515,6 +560,9 @@ void gay::talkwithfriends()
         if (strcmp(pChat.getMessage().c_str(), "exit") == 0) //如果发送exit，就退出私聊，然后给自己发exit让自己的接受消息的线程退出
         {
             ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给自己
+            //将消息写入自己的列表里。意味着自己关闭，continue_receive线程需要开始工作了
+            r = Redis::listrpush(c, pChat.getNumber() + "message", jn.dump().c_str());
+            freeReplyObject(r);
             break;
         }
 
@@ -585,8 +633,18 @@ void gay::talkwithfriends()
         jn2 = json::parse(r->str);
         fri.From_Json(jn2, fri);
         cout << jn.dump() << endl;
-        ssock::SendMsg(fri.getflag(), jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给好友
+        ret = ssock::SendMsg(fri.getflag(), jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给好友
 
+        freeReplyObject(r);
+
+        //将消息写入一个列表里，然后在客户端从该列表中读取数据
+        r = Redis::listrpush(c, pChat.getFriendUid() + "message", jn.dump().c_str());
+        freeReplyObject(r);
+
+        //将聊天记录添加到历史记录里
+        r = Redis::listrpush(c, pChat.getNumber() + "history" + pChat.getFriendUid(), jn.dump().c_str());
+        freeReplyObject(r);
+        r = Redis::listrpush(c, pChat.getFriendUid() + "history" + pChat.getNumber(), jn.dump().c_str());
         freeReplyObject(r);
     }
 
@@ -598,6 +656,59 @@ void gay::talkwithfriends()
     {
         ssock::perr_exit("epoll_ctr error");
     }
+}
+
+// 100一直发消息的线程
+void *continue_send(void *arg)
+{
+    gay g = *((gay *)arg);
+
+    pthread_mutex_unlock(&(((gay *)arg)->getMutex()));
+
+    int clnt_sock = g.getpChat().getServ_fd();
+    struct epoll_event ep;
+    char number[21];
+    string message = "message";
+
+    int ret = ssock::ReadMsg(clnt_sock, number, sizeof(number));
+    if (ret == 0)
+    {
+        qqqqquit(clnt_sock);
+        cout << "clnt_sock"
+             << "关闭" << endl;
+        return NULL;
+    }
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r = Redis::listlen(c, number + message);
+    if (r == NULL)
+    {
+        printf("Execut getValue failure\n");
+        redisFree(c);
+    }
+    int listlen = r->integer;
+    freeReplyObject(r);
+
+    for (int i = 0; i < listlen; ++i)
+    {
+        r = Redis::listlpop(c, number + message);
+        ssock::SendMsg(clnt_sock, r->str, strlen(r->str) + 1);
+        freeReplyObject(r);
+    }
+    ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+
+    redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(g.getefd(), EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+
+    return NULL;
 }
 
 #endif
