@@ -28,7 +28,8 @@ public:
     void addFriend();        // 10添加好友
     void delFriend();        // 11删除好友
     void findFriend();       // 12查询好友
-    void onlineStatus();     //显示好友在线情况
+    void onlineStatus();     // 13显示好友在线情况
+    void blockFriend();      // 14屏蔽好友消息
     void chat_send_friend(); // 17给好友发消息
 
 private:
@@ -313,7 +314,7 @@ void clnt::show_Menu3() //好友管理
         cout << "11、删除好友" << endl;
         cout << "12、查询好友" << endl;
         cout << "13、显示好友在线状态" << endl;
-        cout << "14、屏蔽好友消息" << endl;
+        cout << "14、屏蔽好友或解除屏蔽" << endl;
         cout << "15、返回上一层" << endl;
         while (!(cin >> flag) || flag < 10 || flag > 15)
         {
@@ -341,7 +342,7 @@ void clnt::show_Menu3() //好友管理
             onlineStatus();
             break;
         case 14:
-            
+            blockFriend();
             break;
         }
     }
@@ -449,7 +450,7 @@ void clnt::findFriend()
     }
 }
 
-//显示好友在线情况
+// 13显示好友在线情况
 void clnt::onlineStatus()
 {
     json jn;
@@ -481,6 +482,50 @@ void clnt::onlineStatus()
         {
             cout << "uid = " << fri.getfriendUid() << "在线" << endl;
         }
+    }
+}
+
+// 14屏蔽好友消息或戒除屏蔽
+void clnt::blockFriend()
+{
+    json jn;
+    string friendUid, message;
+    char buf[BUFSIZ];
+
+    cout << "1、屏蔽好友消息" << endl;
+    cout << "2、解除屏蔽" << endl;
+    while (!(cin >> message) || (message != "1" && message != "2"))
+    {
+        cout << "输入有误，清重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+
+    cout << "请输入你要屏蔽的好友的uid" << endl;
+    cin >> friendUid;
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setFriendUid(friendUid);  //设置好友的uid
+    pChat.setMessage(message);      //设置操作
+
+    pChat.To_Json(jn, pChat);
+
+    flag = htonl(flag);
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    if (strcmp(buf, "No user") == 0)
+    {
+        cout << "没有该好友" << endl;
+    }
+    else if (strcmp(buf, "Block successfully") == 0)
+    {
+        cout << "屏蔽成功" << endl;
+    }
+    else if (strcmp(buf, "No block successfully") == 0)
+    {
+        cout << "解除屏蔽成功" << endl;
     }
 }
 
@@ -576,6 +621,11 @@ void *chat_recv_friend(void *arg) //聊天中接受好友消息的线程
         {
             continue;
         }
+        if (strcmp(buf, "No friend") == 0)
+        {
+            continue;
+        }
+        // cout << buf << endl;
         jn = json::parse(buf);
         pChat.From_Json(jn, pChat);
         if (strcmp(pChat.getMessage().c_str(), "exit") == 0)

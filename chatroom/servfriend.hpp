@@ -71,6 +71,7 @@ public:
     void delFriend();          // 11删除好友
     void findFriend();         // 12查询好友
     void onlineStatus();       // 13显示好友在线信息
+    void blockFriend();        // 14屏蔽号有消息
 
     privateChat &getpChat();     //得到pChat对象
     pthread_mutex_t &getMutex(); //获得锁
@@ -106,32 +107,30 @@ void startpchat(void *arg)
     {
         g.addFriend();
     }
-    else if ((g.getpChat().getFlag() == 11))
+    else if ((g.getpChat().getFlag() == 11)) // 11删除好友
     {
-        g.delFriend(); // 11删除好友
+        g.delFriend();
     }
-    else if ((g.getpChat().getFlag() == 12))
+    else if ((g.getpChat().getFlag() == 12)) // 12查询好友
     {
-        g.findFriend(); // 12查询好友
+        g.findFriend();
     }
-    else if ((g.getpChat().getFlag() == 13))
+    else if ((g.getpChat().getFlag() == 13)) // 13显示好友在线状态
     {
-        g.onlineStatus(); // 13显示好友在线状态
+        g.onlineStatus();
     }
-    else if ((g.getpChat().getFlag() == 14))
+    else if ((g.getpChat().getFlag() == 14)) // 14屏蔽好友消息
     {
+        g.blockFriend();
     }
-    else if ((g.getpChat().getFlag() == 15))
-    {
-    }
-    else if ((g.getpChat().getFlag() == 16))
+    else if ((g.getpChat().getFlag() == 16)) // 16查看历史聊天记录
     {
     }
     else if (g.getpChat().getFlag() == 17) // 17和好友聊天
     {
         g.talkwithfriends();
     }
-    else if ((g.getpChat().getFlag() == 18))
+    else if ((g.getpChat().getFlag() == 18)) // 18向好友发送文件
     {
     }
 }
@@ -173,19 +172,20 @@ void gay::signout() // 9退出登录
     redisFree(c);
 }
 
+// 10添加好友
 void gay::addFriend()
 {
     struct epoll_event ep;
     int clnt_sock = pChat.getServ_fd();
     char buf[BUFSIZ];
-    json jn;
+    json jn, jn2;
 
     ssock::ReadMsg(clnt_sock, buf, BUFSIZ);
     jn = json::parse(buf);
 
-    pChat.From_Json(jn, pChat); //将会修改pChat中本来的文件描述符
-    pChat.setServ_fd(clnt_sock);
-    friends fri; //定义一个friends类，将获取到的朋友信息进行解析
+    pChat.From_Json(jn, pChat);  //将会修改pChat中本来的文件描述符
+    pChat.setServ_fd(clnt_sock); //将文件描述符改回去
+    friends fri, fri2;           //定义一个friends类，将获取到的朋友信息进行解析，也将自己信息解析，添加到朋友的好友列表里面
 
     redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
     redisReply *r = Redis::hsetexist(c, pChat.getNumber() + "friend", pChat.getFriendUid()); //判断好友是否已经在好友列表
@@ -223,9 +223,16 @@ void gay::addFriend()
             fri.setflag(1);                         //设置朋友的权限
             fri.setfriendUid(pChat.getFriendUid()); //设置朋友的uid
             fri.To_Json(jn, fri);                   //将fri转换为json
+            fri2.setflag(1);
+            fri2.setfriendUid(pChat.getNumber());
+            fri2.To_Json(jn2, fri2);
 
             //将转换后的字符串写入数据库
+            //将要添加的好友写入自己的好友列表
             r = Redis::hsetValue(c, pChat.getNumber() + "friend", fri.getfriendUid(), jn.dump()); // 1表示正常，0表示屏蔽
+            freeReplyObject(r);
+            //将自己写入要添加的好友的好友列表
+            r = Redis::hsetValue(c, pChat.getFriendUid() + "friend", fri2.getfriendUid(), jn2.dump()); // 1表示正常，0表示屏蔽
             freeReplyObject(r);
         }
 
@@ -275,8 +282,11 @@ void gay::delFriend()
         freeReplyObject(r);
         ssock::SendMsg(clnt_sock, "del successfully", strlen("del successfully") + 1);
 
-        //删除好友
+        //删除好友，将好友从自己的列表删除
         r = Redis::hashdel(c, pChat.getNumber() + "friend", pChat.getFriendUid());
+        freeReplyObject(r);
+        //删除好友，将自己从好友的列表删除
+        r = Redis::hashdel(c, pChat.getFriendUid() + "friend", pChat.getNumber());
         freeReplyObject(r);
 
     } while (0);
@@ -397,6 +407,74 @@ void gay::onlineStatus() // 13显示好友在线信息
     }
 }
 
+// 14屏蔽好友消息
+void gay::blockFriend()
+{
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd();
+    json jn, jn2;
+    privateChat pChat;
+    char buf[BUFSIZ];
+    friends fri;
+
+    ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    jn = json::parse(buf);
+    pChat.From_Json(jn, pChat);
+    pChat.setServ_fd(clnt_sock);
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r = Redis::hsetexist(c, pChat.getNumber() + "friend", pChat.getFriendUid()); //判断好友是否已经在好友列表
+    do
+    {
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            break;
+        }
+        if (r->integer == 0)
+        {
+            printf("没有该好友\n");
+            freeReplyObject(r);
+            ssock::SendMsg(clnt_sock, "No user", strlen("No user") + 1); //删除失败，没有这个好友
+            break;
+        }
+        freeReplyObject(r);
+        if (pChat.getMessage() == "1")
+        {
+            ssock::SendMsg(clnt_sock, "Block successfully", strlen("Block successfully") + 1);
+
+            //屏蔽好友
+            fri.setflag(0);
+            fri.setfriendUid(pChat.getFriendUid());
+            fri.To_Json(jn2, fri);
+            r = Redis::hsetValue(c, pChat.getNumber() + "friend", pChat.getFriendUid(), jn2.dump());
+            freeReplyObject(r);
+        }
+        else
+        {
+            ssock::SendMsg(clnt_sock, "No block successfully", strlen("No block successfully") + 1);
+
+            //解除屏蔽好友
+            fri.setflag(1);
+            fri.setfriendUid(pChat.getFriendUid());
+            fri.To_Json(jn2, fri);
+            r = Redis::hsetValue(c, pChat.getNumber() + "friend", pChat.getFriendUid(), jn2.dump());
+            freeReplyObject(r);
+        }
+
+    } while (0);
+    redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    int ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+}
+
 privateChat &gay::getpChat()
 {
     return pChat;
@@ -413,9 +491,9 @@ void gay::talkwithfriends()
     struct epoll_event ep;
     int clnt_sock = pChat.getServ_fd();
     char buf[BUFSIZ];
-    json jn, jn2;
+    json jn, jn2, jn3;
 
-    friends fri;
+    friends fri, fri2;
     redisContext *c;
     redisReply *r;
 
@@ -441,6 +519,40 @@ void gay::talkwithfriends()
         }
 
         c = Redis::RedisConnect("127.0.0.1", 6379);
+        //判断发送者发送的人是否是它的好友
+        r = Redis::hsetexist(c, pChat.getNumber() + "friend", pChat.getFriendUid());
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            redisFree(c);
+            continue;
+        }
+        if (r->integer == 0) //没有该好友
+        {
+            cout << "没有该好友" << endl;
+            ssock::SendMsg(clnt_sock, "No friend", strlen("No friend") + 1); //将消息转发给自己
+            freeReplyObject(r);
+            continue;
+        }
+        freeReplyObject(r);
+        //判断它是否被它的好友屏蔽了它
+        r = Redis::hgethash(c, pChat.getFriendUid() + "friend", pChat.getNumber());
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            redisFree(c);
+            continue;
+        }
+        jn3 = json::parse(r->str);
+        fri2.From_Json(jn3, fri2);
+        if (fri2.getflag() == 0)
+        {
+            cout << "屏蔽了" << endl;
+            continue;
+        }
+
+        freeReplyObject(r);
+
         r = Redis::hsetexist(c, "Onlineuser", pChat.getFriendUid()); //在数据库中查找好友是否在线
         if (r == NULL)
         {
