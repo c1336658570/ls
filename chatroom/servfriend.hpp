@@ -659,7 +659,7 @@ void gay::talkwithfriends()
 }
 
 // 100一直发消息的线程
-void *continue_send(void *arg)
+void continue_send(void *arg)
 {
     gay g = *((gay *)arg);
 
@@ -676,7 +676,7 @@ void *continue_send(void *arg)
         qqqqquit(clnt_sock);
         cout << "clnt_sock"
              << "关闭" << endl;
-        return NULL;
+        return;
     }
 
     redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
@@ -692,10 +692,20 @@ void *continue_send(void *arg)
     for (int i = 0; i < listlen; ++i)
     {
         r = Redis::listlpop(c, number + message);
-        ssock::SendMsg(clnt_sock, r->str, strlen(r->str) + 1);
+        ret = ssock::SendMsg(clnt_sock, r->str, strlen(r->str) + 1);
+        if (ret == -1)
+        {
+            qqqqquit(clnt_sock);
+            return;
+        }
         freeReplyObject(r);
     }
-    ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+    ret = ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+    if (ret == -1)
+    {
+        qqqqquit(clnt_sock);
+        return;
+    }
 
     redisFree(c);
 
@@ -708,7 +718,7 @@ void *continue_send(void *arg)
         ssock::perr_exit("epoll_ctr error");
     }
 
-    return NULL;
+    return;
 }
 
 #endif

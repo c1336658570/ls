@@ -710,15 +710,28 @@ void *continue_receive(void *arg)
 
     while (1)
     {
+        int ret;
         uint32_t flag = 100;
         flag = htonl(flag);
-        ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
-        //将自己的uid发送给客户端
+        ret = ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+        if (ret == -1)
+        {
+            close(clnt_fd);
+            return NULL;
+        }
+
+        //将自己的uid发送给服务器
         ssock::SendMsg(clnt_fd, (void *)pChat.getNumber().c_str(), strlen(pChat.getNumber().c_str()) + 1);
-        int ret = ssock::ReadMsg(clnt_fd, buf, sizeof(buf)); //从客户端读数据
+        if (ret == -1)
+        {
+            close(clnt_fd);
+            return NULL;
+        }
+        ret = ssock::ReadMsg(clnt_fd, buf, sizeof(buf)); //从服务器读数据
         if (ret == 0)
         {
             close(clnt_fd);
+            return NULL;
         }
         if (strcmp(buf, "finish") == 0)
         {

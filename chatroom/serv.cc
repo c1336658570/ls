@@ -106,8 +106,9 @@ int main(void)
                     pthread_t tid;
                     g.getpChat().setServ_fd(sock);
                     g.getpChat().setFlag(flag);
-                    pthread_create(&tid, NULL, continue_send, (void *)&g);
-                    pthread_detach(tid);
+                    task.arg = &g;
+                    task.function = continue_send;
+                    pool.addTask(task);
                 }
 
                 if (flag >= 1 && flag <= 3)
