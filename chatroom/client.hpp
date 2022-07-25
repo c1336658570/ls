@@ -28,6 +28,7 @@ public:
     void addFriend();        // 10添加好友
     void delFriend();        // 11删除好友
     void findFriend();       // 12查询好友
+    void onlineStatus();     //显示好友在线情况
     void chat_send_friend(); // 17给好友发消息
 
 private:
@@ -337,8 +338,10 @@ void clnt::show_Menu3() //好友管理
             findFriend();
             break;
         case 13:
+            onlineStatus();
             break;
         case 14:
+            
             break;
         }
     }
@@ -431,6 +434,8 @@ void clnt::findFriend()
     pChat.setNumber(u.getNumber()); //设置自己的uid
     pChat.To_Json(jn, pChat);
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    //从对端读消息
     while (1)
     {
         ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
@@ -441,6 +446,41 @@ void clnt::findFriend()
         jn = json::parse(buf);
         fri.From_Json(jn, fri);
         cout << "uid = " << fri.getfriendUid() << endl;
+    }
+}
+
+//显示好友在线情况
+void clnt::onlineStatus()
+{
+    json jn;
+    char buf[BUFSIZ];
+    friends fri;
+
+    flag = htonl(flag);
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.To_Json(jn, pChat);
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //向对端发送消息
+
+    //从对端读消息
+    while (1)
+    {
+        ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+        if (strcmp(buf, "finish") == 0)
+        {
+            break;
+        }
+        jn = json::parse(buf);
+        fri.From_Json(jn, fri);
+        if (fri.getflag() == 1 || fri.getflag() == 0)
+        {
+            cout << "uid = " << fri.getfriendUid() << "不在线" << endl;
+        }
+        else
+        {
+            cout << "uid = " << fri.getfriendUid() << "在线" << endl;
+        }
     }
 }
 
@@ -499,6 +539,7 @@ void clnt::chat_send_friend()
         cout << "不可以给自己发消息" << endl;
         return;
     }
+    cout << "输入exit退出" << endl;
 
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag)); //向服务器发送要执行的操作

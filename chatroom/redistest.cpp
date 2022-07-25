@@ -64,7 +64,12 @@ int main(void)
 
     freeReplyObject(r);
 
-    r = Redis::hgethash(c, "info", "123");
+    r = Redis::hgethash(c, "info", "456");
+    if (r == NULL)
+    {
+        cout << "111";
+        redisFree(c);
+    }
     if (r->type != REDIS_REPLY_STRING)
     {
         printf("Execut getValue failure\n");
@@ -88,7 +93,7 @@ int main(void)
 
     redisFree(c);
 
-    testhgetall();
+    // testhgetall();
 
     return 0;
 }
