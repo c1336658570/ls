@@ -8,7 +8,7 @@ make: *** No rule to make target 'all'.  Stop.
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Sat Jul 23 09:00:47 2022
+# Make data base, printed on Tue Jul 26 11:23:27 2022
 
 # Variables
 
@@ -43,7 +43,7 @@ CURDIR := /home/cccmmf/task
 # makefile
 SHELL = /bin/sh
 # environment
-VSCODE_NLS_CONFIG = {"locale":"zh-cn","availableLanguages":{"*":"zh-cn"},"_languagePackId":"1d735750dbb1b9066c7513078396ba0f.zh-cn","_translationsConfigFile":"/home/cccmmf/.config/Code/clp/1d735750dbb1b9066c7513078396ba0f.zh-cn/tcf.json","_cacheRoot":"/home/cccmmf/.config/Code/clp/1d735750dbb1b9066c7513078396ba0f.zh-cn","_resolvedLanguagePackCoreLocation":"/home/cccmmf/.config/Code/clp/1d735750dbb1b9066c7513078396ba0f.zh-cn/b06ae3b2d2dbfe28bca3134cc6be65935cdfea6a","_corruptedFile":"/home/cccmmf/.config/Code/clp/1d735750dbb1b9066c7513078396ba0f.zh-cn/corrupted.info","_languagePackSupport":true}
+VSCODE_NLS_CONFIG = {"locale":"zh-cn","availableLanguages":{"*":"zh-cn"},"_languagePackId":"1d735750dbb1b9066c7513078396ba0f.zh-cn","_translationsConfigFile":"/home/cccmmf/.config/Code/clp/1d735750dbb1b9066c7513078396ba0f.zh-cn/tcf.json","_cacheRoot":"/home/cccmmf/.config/Code/clp/1d735750dbb1b9066c7513078396ba0f.zh-cn","_resolvedLanguagePackCoreLocation":"/home/cccmmf/.config/Code/clp/1d735750dbb1b9066c7513078396ba0f.zh-cn/3b889b090b5ad5793f524b5d1d39fda662b96a2a","_corruptedFile":"/home/cccmmf/.config/Code/clp/1d735750dbb1b9066c7513078396ba0f.zh-cn/corrupted.info","_languagePackSupport":true}
 # environment
 _ = /usr/share/code/code
 # environment
@@ -93,7 +93,7 @@ XDG_SESSION_DESKTOP = ubuntu
 # environment
 SSH_AUTH_SOCK = /run/user/1000/keyring/ssh
 # environment
-GIO_LAUNCHED_DESKTOP_FILE_PID = 1070165
+GIO_LAUNCHED_DESKTOP_FILE_PID = 1258262
 # automatic
 %F = $(notdir $%)
 # environment
@@ -113,7 +113,7 @@ VSCODE_AMD_ENTRYPOINT = vs/workbench/api/node/extensionHostProcess
 # environment
 HOME = /home/cccmmf
 # environment
-VSCODE_CODE_CACHE_PATH = /home/cccmmf/.config/Code/CachedData/b06ae3b2d2dbfe28bca3134cc6be65935cdfea6a
+VSCODE_CODE_CACHE_PATH = /home/cccmmf/.config/Code/CachedData/3b889b090b5ad5793f524b5d1d39fda662b96a2a
 # environment
 LOGNAME = cccmmf
 # environment
@@ -161,7 +161,7 @@ OLDPWD = /home/cccmmf
 # environment
 LANGUAGE = zh_CN:zh
 # environment
-VSCODE_IPC_HOOK = /run/user/1000/vscode-abc1d4ae-1.69.1-main.sock
+VSCODE_IPC_HOOK = /run/user/1000/vscode-abc1d4ae-1.69.2-main.sock
 # makefile
 MAKEFLAGS = pqrR
 # environment
@@ -203,7 +203,7 @@ GJS_DEBUG_OUTPUT = stderr
 # environment
 LANG = C
 # environment
-VSCODE_PID = 1070165
+VSCODE_PID = 1258262
 # variable set hash-table stats:
 # Load=96/1024=9%, Rehash=0, Collisions=12/118=10%
 
@@ -271,6 +271,6 @@ GNUmakefile:
 # strcache performance: lookups = 26 / hit rate = 11%
 # hash-table stats:
 # Load=23/8192=0%, Rehash=0, Collisions=2/26=8%
-# Finished Make data base on Sat Jul 23 09:00:47 2022
+# Finished Make data base on Tue Jul 26 11:23:27 2022
 
  
