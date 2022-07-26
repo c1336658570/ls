@@ -69,16 +69,17 @@ public:
     void setEfd(const int &e); //设置监听树根
     void signout();            // 9退出登录
     void addFriend();          // 10 添加好友
-    void delFriend();          // 11删除好友
-    void findFriend();         // 12查询好友
-    void onlineStatus();       // 13显示好友在线信息
-    void blockFriend();        // 14屏蔽号有消息
+    void inquqireAdd();        // 11查询好友添加信息
+    void delFriend();          // 12删除好友
+    void findFriend();         // 13查询好友
+    void onlineStatus();       // 14显示好友在线信息
+    void blockFriend();        // 15屏蔽号有消息
 
     privateChat &getpChat();     //得到pChat对象
     pthread_mutex_t &getMutex(); //获得锁
     int getefd();                //获得根节点
-    void history_message();      // 16查看历史聊天记录
-    void talkwithfriends();      // 17和朋友聊天
+    void history_message();      // 17查看历史聊天记录
+    void talkwithfriends();      // 18和朋友聊天
 
 private:
     pthread_mutex_t mutex;
@@ -112,6 +113,7 @@ void startpchat(void *arg)
     }
     else if (g.getpChat().getFlag() == INQUIREADD) // 11查看好友添加信息
     {
+        g.inquqireAdd();
     }
     else if ((g.getpChat().getFlag() == DELFRIEND)) // 12删除好友
     {
@@ -138,6 +140,9 @@ void startpchat(void *arg)
         g.talkwithfriends();
     }
     else if ((g.getpChat().getFlag() == SEND_FILE)) // 19向好友发送文件
+    {
+    }
+    else if ((g.getpChat().getFlag() == SEND_FILE)) // 20接收好友发送的文件
     {
     }
 }
@@ -229,22 +234,12 @@ void gay::addFriend()
         }
         else
         {
-            ssock::SendMsg(clnt_sock, "Added successfully", strlen("Added successfully") + 1);
+            ssock::SendMsg(clnt_sock, "wait", strlen("wait") + 1);
             freeReplyObject(r);
-            fri.setflag(1);                         //设置朋友的权限
-            fri.setfriendUid(pChat.getFriendUid()); //设置朋友的uid
-            fri.To_Json(jn, fri);                   //将fri转换为json
-            fri2.setflag(1);
-            fri2.setfriendUid(pChat.getNumber());
-            fri2.To_Json(jn2, fri2);
-
-            //将转换后的字符串写入数据库
-            //将要添加的好友写入自己的好友列表
-            r = Redis::hsetValue(c, pChat.getNumber() + "friend", fri.getfriendUid(), jn.dump()); // 1表示正常，0表示屏蔽
+            r = Redis::listrpush(c, pChat.getFriendUid() + "addfriend", jn.dump()); //将添加好友的信息放到数据库等待对方同意
             freeReplyObject(r);
-            //将自己写入要添加的好友的好友列表
-            r = Redis::hsetValue(c, pChat.getFriendUid() + "friend", fri2.getfriendUid(), jn2.dump()); // 1表示正常，0表示屏蔽
-            freeReplyObject(r);
+            //将消息放到接收好友请求的用户的数据库中，提醒该用户有人添加它
+            r = Redis::listrpush(c, pChat.getFriendUid() + "message", jn.dump());
         }
 
     } while (0);
@@ -260,7 +255,96 @@ void gay::addFriend()
     }
 }
 
-// 11删除好友
+// 11查询好友添加信息
+void gay::inquqireAdd()
+{
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd();
+    char buf[5];
+    friends fri, fri2; //定义一个friends类，将获取到的朋友信息进行解析，也将自己信息解析，添加到朋友的好友列表里面
+    json jn, jn2, jn3;
+
+    char number[21];
+    string addf = "addfriend";
+
+    int ret = ssock::ReadMsg(clnt_sock, number, sizeof(number));
+    if (ret == 0)
+    {
+        qqqqquit(clnt_sock);
+        cout << "clnt_sock"
+             << "关闭" << endl;
+        return;
+    }
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r = Redis::listlen(c, number + addf);
+    if (r == NULL)
+    {
+        printf("Execut getValue failure\n");
+        redisFree(c);
+    }
+    int listlen = r->integer;
+    freeReplyObject(r);
+
+    for (int i = 0; i < listlen; ++i)
+    {
+        r = Redis::listlpop(c, number + addf);
+        cout << r->str << endl;
+        jn3 = json::parse(r->str);
+        pChat.From_Json(jn3, pChat); //将会修改pChat中本来的文件描述符
+        pChat.setServ_fd(clnt_sock); //将文件描述符改回去
+        ret = ssock::SendMsg(clnt_sock, r->str, strlen(r->str) + 1);
+        if (ret == -1)
+        {
+            qqqqquit(clnt_sock);
+            freeReplyObject(r);
+            return;
+        }
+        freeReplyObject(r);
+        ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+        if (strcmp(buf, "Yes") == 0)
+        {
+            cout << "成功添加" << endl;
+            fri.setflag(1);                         //设置朋友的权限
+            fri.setfriendUid(pChat.getFriendUid()); //设置朋友的uid
+            fri.To_Json(jn, fri);                   //将fri转换为json
+            fri2.setflag(1);
+            fri2.setfriendUid(pChat.getNumber());
+            fri2.To_Json(jn2, fri2);
+
+            //将转换后的字符串写入数据库
+            //将要添加的好友写入自己的好友列表
+            r = Redis::hsetValue(c, pChat.getNumber() + "friend", fri.getfriendUid(), jn.dump()); // 1表示正常，0表示屏蔽
+            freeReplyObject(r);
+            //将自己写入要添加的好友的好友列表
+            r = Redis::hsetValue(c, pChat.getFriendUid() + "friend", fri2.getfriendUid(), jn2.dump()); // 1表示正常，0表示屏蔽
+            freeReplyObject(r);
+        }
+        else
+        {
+            cout << "添加失败" << endl;
+        }
+    }
+    ret = ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+    if (ret == -1)
+    {
+        qqqqquit(clnt_sock);
+        return;
+    }
+
+    redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+}
+
+// 12删除好友
 void gay::delFriend()
 {
     struct epoll_event ep;
@@ -313,7 +397,7 @@ void gay::delFriend()
     }
 }
 
-// 12查询好友
+// 13查询好友
 void gay::findFriend()
 {
     struct epoll_event ep;
@@ -357,7 +441,7 @@ void gay::findFriend()
     }
 }
 
-void gay::onlineStatus() // 13显示好友在线信息
+void gay::onlineStatus() // 14显示好友在线信息
 {
     struct epoll_event ep;
     int clnt_sock = pChat.getServ_fd();
@@ -418,7 +502,7 @@ void gay::onlineStatus() // 13显示好友在线信息
     }
 }
 
-// 14屏蔽好友消息
+// 15屏蔽好友消息
 void gay::blockFriend()
 {
     struct epoll_event ep;
@@ -496,7 +580,7 @@ pthread_mutex_t &gay::getMutex() //获得锁
     return mutex;
 }
 
-// 16查看历史聊天记录
+// 17查看历史聊天记录
 void gay::history_message()
 {
     struct epoll_event ep;
@@ -534,7 +618,7 @@ void gay::history_message()
     }
 }
 
-// 17和好友聊天
+// 18和好友聊天
 void gay::talkwithfriends()
 {
     struct epoll_event ep;

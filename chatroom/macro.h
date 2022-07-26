@@ -20,6 +20,7 @@
 #define HISTORY_MESSAGE 17  //历史消息记录
 #define CHAT_SEND_FRIEND 18 //给好友发消息
 #define SEND_FILE 19        //给好友发文件
-#define RETURNON2 20        //返回上一层
+#define RECV_FILE 20        //接收文件
+#define RETURNON2 21        //返回上一层
 
 #endif
