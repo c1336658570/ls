@@ -15,6 +15,7 @@
 #include "message.hpp"
 #include "redis1.hpp"
 #include "threadpool.hpp"
+#include "macro.h"
 using namespace std;
 
 void qqqqquit(int clnt_sock) //将其从在线用户中删除
@@ -101,39 +102,42 @@ void startpchat(void *arg)
     pthread_mutex_unlock(&(((gay *)arg)->getMutex()));
 
     cout << g.getpChat().getFlag() << endl;
-    if (g.getpChat().getFlag() == 9) // 9退出登录
+    if (g.getpChat().getFlag() == SIGNOUT) // 9退出登录
     {
         g.signout();
     }
-    else if ((g.getpChat().getFlag() == 10)) // 10添加好友
+    else if ((g.getpChat().getFlag() == ADDFRIEND)) // 10添加好友
     {
         g.addFriend();
     }
-    else if ((g.getpChat().getFlag() == 11)) // 11删除好友
+    else if (g.getpChat().getFlag() == INQUIREADD) // 11查看好友添加信息
+    {
+    }
+    else if ((g.getpChat().getFlag() == DELFRIEND)) // 12删除好友
     {
         g.delFriend();
     }
-    else if ((g.getpChat().getFlag() == 12)) // 12查询好友
+    else if ((g.getpChat().getFlag() == FINDFRIEND)) // 13查询好友
     {
         g.findFriend();
     }
-    else if ((g.getpChat().getFlag() == 13)) // 13显示好友在线状态
+    else if ((g.getpChat().getFlag() == ONLINESTATUS)) // 14显示好友在线状态
     {
         g.onlineStatus();
     }
-    else if ((g.getpChat().getFlag() == 14)) // 14屏蔽好友消息
+    else if ((g.getpChat().getFlag() == BLOCKFRIEND)) // 15屏蔽好友消息
     {
         g.blockFriend();
     }
-    else if ((g.getpChat().getFlag() == 16)) // 16查看历史聊天记录
+    else if ((g.getpChat().getFlag() == HISTORY_MESSAGE)) // 17查看历史聊天记录
     {
         g.history_message();
     }
-    else if (g.getpChat().getFlag() == 17) // 17和好友聊天
+    else if (g.getpChat().getFlag() == CHAT_SEND_FRIEND) // 18和好友聊天
     {
         g.talkwithfriends();
     }
-    else if ((g.getpChat().getFlag() == 18)) // 18向好友发送文件
+    else if ((g.getpChat().getFlag() == SEND_FILE)) // 19向好友发送文件
     {
     }
 }
@@ -612,6 +616,15 @@ void gay::talkwithfriends()
         {
             cout << "好友不在线" << endl;
             freeReplyObject(r);
+            //将消息写入一个列表里，然后在客户端从该列表中读取数据
+            r = Redis::listrpush(c, pChat.getFriendUid() + "message", jn.dump().c_str());
+            freeReplyObject(r);
+
+            //将聊天记录添加到历史记录里
+            r = Redis::listrpush(c, pChat.getNumber() + "history" + pChat.getFriendUid(), jn.dump().c_str());
+            freeReplyObject(r);
+            r = Redis::listrpush(c, pChat.getFriendUid() + "history" + pChat.getNumber(), jn.dump().c_str());
+            freeReplyObject(r);
             continue;
         }
         freeReplyObject(r);
@@ -659,7 +672,7 @@ void gay::talkwithfriends()
 }
 
 // 100一直发消息的线程
-void continue_send(void *arg)
+void *continue_send(void *arg)
 {
     gay g = *((gay *)arg);
 
@@ -676,7 +689,7 @@ void continue_send(void *arg)
         qqqqquit(clnt_sock);
         cout << "clnt_sock"
              << "关闭" << endl;
-        return;
+        return NULL;
     }
 
     redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
@@ -696,7 +709,8 @@ void continue_send(void *arg)
         if (ret == -1)
         {
             qqqqquit(clnt_sock);
-            return;
+            freeReplyObject(r);
+            return NULL;
         }
         freeReplyObject(r);
     }
@@ -704,7 +718,7 @@ void continue_send(void *arg)
     if (ret == -1)
     {
         qqqqquit(clnt_sock);
-        return;
+        return NULL;
     }
 
     redisFree(c);
@@ -718,7 +732,7 @@ void continue_send(void *arg)
         ssock::perr_exit("epoll_ctr error");
     }
 
-    return;
+    return NULL;
 }
 
 #endif

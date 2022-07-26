@@ -30,6 +30,7 @@ int main(void)
     {
         ssock::perr_exit("epoll_create error");
     }
+    setsp();
     s.setEfd(efd);
     g.setEfd(efd);
 
@@ -106,9 +107,8 @@ int main(void)
                     pthread_t tid;
                     g.getpChat().setServ_fd(sock);
                     g.getpChat().setFlag(flag);
-                    task.arg = &g;
-                    task.function = continue_send;
-                    pool.addTask(task);
+                    pthread_create(&tid, NULL, continue_send, &g);
+                    pthread_detach(tid);
                 }
 
                 if (flag >= 1 && flag <= 3)
@@ -121,7 +121,7 @@ int main(void)
                     task.function = startlogin;
                     pool.addTask(task);
                 }
-                else if (flag >= 9 && flag <= 18)
+                else if (flag >= 9 && flag <= 19)
                 {
                     pthread_mutex_lock(&(g.getMutex()));
                     g.getpChat().setServ_fd(sock);

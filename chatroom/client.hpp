@@ -5,7 +5,7 @@
 #include <time.h>
 #include "message.hpp"
 #include "ssock.hpp"
-#include "leveldb/db.h"
+#include "macro.h"
 using namespace std;
 
 void *chat_recv_friend(void *arg); //接受好友消息的线程
@@ -27,12 +27,13 @@ public:
     void quit();             // 4退出
     void signout();          // 9退出登录
     void addFriend();        // 10添加好友
-    void delFriend();        // 11删除好友
-    void findFriend();       // 12查询好友
-    void onlineStatus();     // 13显示好友在线情况
-    void blockFriend();      // 14屏蔽好友消息
-    void history_message();  // 16历史聊天记录
-    void chat_send_friend(); // 17给好友发消息
+    void inquireAdd();       // 11查看好友添加信息
+    void delFriend();        // 12删除好友
+    void findFriend();       // 13查询好友
+    void onlineStatus();     // 14显示好友在线情况
+    void blockFriend();      // 15屏蔽或解除屏蔽好友消息
+    void history_message();  // 17历史聊天记录
+    void chat_send_friend(); // 18给好友发消息
 
 private:
     uint32_t flag;     //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
@@ -52,23 +53,29 @@ void clnt::show_Menu1()
         cout << "4、退出" << endl;
         while (!(cin >> flag) || flag < 1 || flag > 4)
         {
+            if (cin.eof())
+            {
+                cout << "读到文件结束，函数返回" << endl;
+                return;
+            }
             cout << "输入有误" << endl;
             cin.clear();
             cin.ignore(INT32_MAX, '\n');
         }
+        cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
         u.setFlag(flag);
         switch (flag)
         {
-        case 1:
+        case LOGIN:
             login();
             break;
-        case 2:
+        case REGISTER:
             reg();
             break;
-        case 3:
+        case RETRIEVE:
             retrieve();
             break;
-        case 4:
+        case QUIT:
             quit();
             break;
         }
@@ -83,18 +90,30 @@ void clnt::read_account()
     cout << "请输入你的账号，不要超过20个字符" << endl;
     while (!(cin >> uid) || uid.size() > 20)
     {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
         cout << "输入有误或账号过长，请重新输入" << endl;
         cin.clear();
         cin.ignore(INT32_MAX, '\n');
     }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
 
     cout << "请输入密码，不要超过20个字符" << endl;
     while (!(cin >> passwd) || passwd.size() > 20)
     {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
         cout << "输入有误或密码过长，请重新输入" << endl;
         cin.clear();
         cin.ignore(INT32_MAX, '\n');
     }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
 
     u.setNumber(uid);    //设置账号
     u.setPasswd(passwd); //设置密码
@@ -153,17 +172,31 @@ void clnt::reg()
     cout << "请输入你的昵称，不要超过20个字符" << endl;
     while (!(cin >> name) || name.size() > 20)
     {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
         cout << "输入有误或昵称过长，请重新输入" << endl;
         cin.clear(); //清除cin缓冲
+        cin.ignore(INT32_MAX, '\n');
     }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
 
     cout << "请输入密匙，用来找回密码，不要超过20个字符" << endl;
     while (!(cin >> key) || key.size() > 20)
     {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
         cout << "输入有误或密码过长，请重新输入" << endl;
         cin.clear();
         cin.ignore(INT32_MAX, '\n');
     }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
     u.setKey(key);   //设置key
     u.setName(name); //设置昵称
 
@@ -203,17 +236,31 @@ void clnt::retrieve() //找回密码
     cout << "请输入你的账号，不要超过20个字符" << endl;
     while (!(cin >> uid) || uid.size() > 20)
     {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
         cout << "输入有误或账号过长，请重新输入" << endl;
         cin.clear();
         cin.ignore(INT32_MAX, '\n');
     }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
     cout << "请输入你的密匙，不要超过20个字符" << endl;
     while (!(cin >> key) || key.size() > 20)
     {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
         cout << "输入有误或密码过长，请重新输入" << endl;
         cin.clear();
         cin.ignore(INT32_MAX, '\n');
     }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
     u.setNumber(uid);
     u.setKey(key);
 
@@ -270,23 +317,30 @@ void clnt::show_Meun2() // 5好友管理，6私聊，7群管理，8群聊，9退
         cout << "9、退出登录" << endl;
         while (!(cin >> flag) || flag < 5 || flag > 9)
         {
+            if (cin.eof())
+            {
+                cout << "读到文件结束，函数返回" << endl;
+                return;
+            }
             cout << "输入有误" << endl;
             cin.clear();
             cin.ignore(INT32_MAX, '\n');
         }
+        cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
         switch (flag)
         {
-        case 5:
+        case SHOW_MENU3:
             clnt::show_Menu3();
             break;
-        case 6:
+        case SHOW_MENU4:
             clnt::show_Menu4();
             break;
-        case 7:
+        case SHOW_MENU5:
             break;
-        case 8:
+        case SHOW_MENU6:
             break;
-        case 9:
+        case SIGNOUT:
             signout();
             break;
         }
@@ -317,37 +371,48 @@ void clnt::show_Menu3() //好友管理
         flag = 0;
         cout << "请输入要执行的操作" << endl; // 10、添加好友，11删除好友、12、查询好友、13显示好友在线状态、14屏蔽好友消息、15返回上一层
         cout << "10、添加好友" << endl;
-        cout << "11、删除好友" << endl;
-        cout << "12、查询好友" << endl;
-        cout << "13、显示好友在线状态" << endl;
-        cout << "14、屏蔽好友或解除屏蔽" << endl;
-        cout << "15、返回上一层" << endl;
-        while (!(cin >> flag) || flag < 10 || flag > 15)
+        cout << "11、查看好友添加信息" << endl;
+        cout << "12、删除好友" << endl;
+        cout << "13、查询好友" << endl;
+        cout << "14、显示好友在线状态" << endl;
+        cout << "15、屏蔽好友或解除屏蔽" << endl;
+        cout << "16、返回上一层" << endl;
+        while (!(cin >> flag) || flag < 10 || flag > 16)
         {
+            if (cin.eof())
+            {
+                cout << "读到文件结束，函数返回" << endl;
+                return;
+            }
             cout << "输入有误" << endl;
             cin.clear();
             cin.ignore(INT32_MAX, '\n');
         }
+        cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
         pChat.setFlag(flag); //设置操作
-        if (flag == 15)
+        if (flag == RETURNON1)
         {
             break;
         }
         switch (flag)
         {
-        case 10:
+        case ADDFRIEND:
             addFriend();
             break;
-        case 11:
+        case INQUIREADD:
+            inquireAdd();
+            break;
+        case DELFRIEND:
             delFriend();
             break;
-        case 12:
+        case FINDFRIEND:
             findFriend();
             break;
-        case 13:
+        case ONLINESTATUS:
             onlineStatus();
             break;
-        case 14:
+        case BLOCKFRIEND:
             blockFriend();
             break;
         }
@@ -363,8 +428,21 @@ void clnt::addFriend()
     pChat.setNumber(u.getNumber()); //设置自己的uid
     pChat.setName(u.getName());     //设置自己的姓名
 
-    cout << "请输入你要添加的好友的uid" << endl;
-    cin >> friendUid; //输入好友uid
+    cout << "请输入你要添加的好友的uid，不要超过20个字符" << endl;
+    //输入好友uid
+    while (!(cin >> friendUid) || friendUid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
     if (pChat.getNumber() == friendUid)
     {
         cout << "不可以添加自己" << endl;
@@ -393,7 +471,17 @@ void clnt::addFriend()
     }
 }
 
-// 11删除好友
+// 11查询好友添加信息
+void clnt::inquireAdd()
+{
+    char buf[BUFSIZ];
+    json jn;
+
+    flag = htonl(flag);
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+}
+
+// 12删除好友
 void clnt::delFriend()
 {
     char buf[BUFSIZ];
@@ -402,8 +490,21 @@ void clnt::delFriend()
     pChat.setNumber(u.getNumber()); //设置自己的uid
     pChat.setName(u.getName());     //设置自己的姓名
 
-    cout << "请输入你要删除的好友的uid" << endl;
-    cin >> friendUid; //输入好友uid
+    cout << "请输入你要删除的好友的uid，不要超过20个字符" << endl;
+    //输入好友uid
+    while (!(cin >> friendUid) || friendUid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
     if (pChat.getNumber() == friendUid)
     {
         cout << "不可以删除自己" << endl;
@@ -428,7 +529,7 @@ void clnt::delFriend()
     }
 }
 
-// 12查询好友
+// 13查询好友
 void clnt::findFriend()
 {
     friends fri;
@@ -456,7 +557,7 @@ void clnt::findFriend()
     }
 }
 
-// 13显示好友在线情况
+// 14显示好友在线情况
 void clnt::onlineStatus()
 {
     json jn;
@@ -491,7 +592,7 @@ void clnt::onlineStatus()
     }
 }
 
-// 14屏蔽好友消息或戒除屏蔽
+// 15屏蔽好友消息或戒除屏蔽
 void clnt::blockFriend()
 {
     json jn;
@@ -502,13 +603,30 @@ void clnt::blockFriend()
     cout << "2、解除屏蔽" << endl;
     while (!(cin >> message) || (message != "1" && message != "2"))
     {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
         cout << "输入有误，清重新输入" << endl;
         cin.clear();
         cin.ignore(INT32_MAX, '\n');
     }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
 
-    cout << "请输入你要屏蔽的好友的uid" << endl;
-    cin >> friendUid;
+    cout << "请输入好友的uid，不要超过20个字符" << endl;
+    while (!(cin >> friendUid) || friendUid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
 
     pChat.setNumber(u.getNumber()); //设置自己的uid
     pChat.setFriendUid(friendUid);  //设置好友的uid
@@ -535,43 +653,50 @@ void clnt::blockFriend()
     }
 }
 
-void clnt::show_Menu4() //私聊
+void clnt::show_Menu4() // 18私聊
 {
     while (1)
     {
         flag = 0;
         cout << "请输入要执行的操作" << endl;
-        cout << "16、查看历史聊天记录" << endl;
-        cout << "17、和好友聊天" << endl;
-        cout << "18、向好友发送文件" << endl;
-        cout << "19、返回上一级" << endl;
+        cout << "17、查看历史聊天记录" << endl;
+        cout << "18、和好友聊天" << endl;
+        cout << "19、向好友发送文件" << endl;
+        cout << "20、返回上一级" << endl;
 
-        while (!(cin >> flag) || flag < 16 || flag > 19)
+        while (!(cin >> flag) || flag < 17 || flag > 20)
         {
+            if (cin.eof())
+            {
+                cout << "读到文件结束，函数返回" << endl;
+                return;
+            }
             cout << "输入有误" << endl;
             cin.clear();
             cin.ignore(INT32_MAX, '\n');
         }
+        cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
         pChat.setFlag(flag);
-        if (flag == 19)
+        if (flag == RETURNON2)
         {
             break;
         }
         switch (flag)
         {
-        case 16: //历史聊天记录
+        case HISTORY_MESSAGE: //历史聊天记录
             history_message();
             break;
-        case 17:
+        case CHAT_SEND_FRIEND:
             chat_send_friend(); //和好友聊天
             break;
-        case 18:
+        case SEND_FILE: //向好友发文件
             break;
         }
     }
 }
 
-// 16查看历史聊天记录
+// 17查看历史聊天记录
 void clnt::history_message()
 {
     int ret;
@@ -579,13 +704,20 @@ void clnt::history_message()
     json jn;
     char buf[BUFSIZ];
 
-    cout << "请输入你要查看uid" << endl;
+    cout << "请输入你要查看uid，不要超过20个字符" << endl;
     while (!(cin >> number) || number.size() > 20)
     {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
         cout << "输入有误或账号过长，请重新输入" << endl;
         cin.clear();
         cin.ignore(INT32_MAX, '\n');
     }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
     pChat.setNumber(u.getNumber()); //设置自己的uid
     pChat.setFriendUid(number);     //设置要查看的历史聊天记录的对方uid
 
@@ -614,7 +746,7 @@ void clnt::history_message()
     }
 }
 
-// 17聊天中发送消息的线程
+// 18聊天中发送消息的线程
 void clnt::chat_send_friend()
 {
     pthread_t tid;
@@ -622,8 +754,20 @@ void clnt::chat_send_friend()
     string message;
     string friendUid;
 
-    cout << "请输入你要发送消息的uid" << endl;
-    cin >> friendUid;
+    cout << "请输入你要发送消息的uid，不要超过20个字符" << endl;
+    while (!(cin >> friendUid) || friendUid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
     if (u.getNumber() == friendUid)
     {
         cout << "不可以给自己发消息" << endl;
@@ -644,6 +788,7 @@ void clnt::chat_send_friend()
     while (1)
     {
         cin >> message;
+        cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
 
         pChat.setTimeNow(); //设置时间
         pChat.setMessage(message);
@@ -665,7 +810,6 @@ void *chat_recv_friend(void *arg) //聊天中接受好友消息的线程
     int clnt_fd = pChat.getServ_fd();
     string number = pChat.getFriendUid(); //确保消息是我要聊天的好友发送过来的，如果不是我要聊天的好友发送过来的，就将其添加到聊天的历史记录里面
     int ret;
-    int i = 0;
     while (1)
     {
         ret = ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
@@ -744,11 +888,9 @@ void *continue_receive(void *arg)
             pChat.setFlag(1);
             continue;
         }
-        cout << "flag = " << flag << endl
-             << "pChat.getflag = " << pChat.getFlag();
-        if (pChat.getFlag() != 17) // flag不等于17，即客户端没有进入聊天，其他人发的连天消息写入到一个列表里，客户端通过该线程读取
+        if (pChat.getFlag() != CHAT_SEND_FRIEND) // flag不等于18，即客户端没有进入聊天，其他人发的连天消息写入到一个列表里，客户端通过该线程读取
         {
-            cout << "你收到了来自" << pChat2.getNumber() << "的一条消息" << endl;
+            cout << "你收到了来自" << pChat2.getNumber() << "的一条消息，请在历史记录中查看" << endl;
         }
     }
 }

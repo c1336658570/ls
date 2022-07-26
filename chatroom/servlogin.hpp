@@ -15,9 +15,11 @@ g++ -o account account.cc account.hpp ssock.cpp -lhiredis
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <signal.h>
 #include "message.hpp"
 #include "redis1.hpp"
 #include "threadpool.hpp"
+#include "macro.h"
 using namespace std;
 
 #define OPEN_MAX 5000
@@ -66,7 +68,7 @@ void startlogin(void *arg)
 {
     account s = *((account *)arg);
     pthread_mutex_unlock(&(((account *)arg)->getMutex()));
-    if ((s.getUser()).getFlag() == 1)
+    if ((s.getUser()).getFlag() == LOGIN)
     {
         // bool ret =
         s.login();
@@ -81,14 +83,23 @@ void startlogin(void *arg)
         }
         */
     }
-    else if ((s.getUser()).getFlag() == 2)
+    else if ((s.getUser()).getFlag() == REGISTER)
     {
         s.reg();
     }
-    else if ((s.getUser()).getFlag() == 3)
+    else if ((s.getUser()).getFlag() == RETRIEVE)
     {
         s.retrieve();
     }
+}
+
+void setsp()
+{
+    sigset_t set;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGPIPE);
+    sigprocmask(SIG_BLOCK, &set, NULL);
 }
 
 //从数据库读数据并与登陆输入的数据比较
