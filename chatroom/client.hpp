@@ -696,7 +696,7 @@ void clnt::blockFriend()
     }
 }
 
-void clnt::show_Menu4() // 18私聊
+void clnt::show_Menu4()
 {
     while (1)
     {
@@ -899,6 +899,7 @@ void clnt::send_file()
 {
     string friendUid;
     json jn;
+    char buf[BUFSIZ];
 
     cout << "请输入你要发送文件的好友uid，不要超过20个字符" << endl;
     while (!(cin >> friendUid) || friendUid.size() > 20)
@@ -926,10 +927,6 @@ void clnt::send_file()
 
     pChat.setTimeNow(); //设置时间
 
-    pChat.To_Json(jn, pChat); //将类转为序列
-
-    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将序列发给服务器
-
     string file_name;
     cout << "请输入你要发送的文件路径和文件名" << endl;
     while (!(cin >> file_name))
@@ -944,9 +941,7 @@ void clnt::send_file()
         cin.ignore(INT32_MAX, '\n');
     }
     cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
-
-    flag = htonl(flag);
-    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    pChat.setMessage(file_name); //设置文件名
 
     int filefd = open(file_name.c_str(), O_RDONLY);
     if (filefd == -1)
@@ -955,14 +950,118 @@ void clnt::send_file()
         return;
     }
 
+    flag = htonl(flag);
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    pChat.To_Json(jn, pChat);                                                  //将类转为序列
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将序列发给服务器
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    if (strcmp(buf, "No friend") == 0)
+    {
+        cout << "没有该好友" << endl;
+        return;
+    }
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    if (strcmp(buf, "Has block") == 0)
+    {
+        return;
+    }
+
     struct stat file_stat;
     //为了获取文件大小
     fstat(filefd, &file_stat);
+    ssock::SendMsg(clnt_fd, (void *)&file_stat.st_size, sizeof(file_stat.st_size));
     sendfile(clnt_fd, filefd, NULL, file_stat.st_size);
+
     close(filefd);
 }
 
-//每隔1s向服务器发送100，然后读取信息
+// 20接收文件
+void clnt::recv_file()
+{
+    privateChat pChat2;
+    json jn;
+    char buf[BUFSIZ];
+    string message;
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+    pChat.To_Json(jn, pChat);
+
+    flag = htonl(flag);
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, (void *)jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    while (1)
+    {
+        ssock::ReadMsg(clnt_fd, (void *)buf, sizeof(buf));
+        if (strcmp(buf, "finish") == 0)
+        {
+            break;
+        }
+        cout << buf << endl;
+        jn = json::parse(buf);
+        pChat2.From_Json(jn, pChat2);
+
+        string filename(pChat2.getMessage()); //文件名及其文件路径
+        cout << filename << endl;
+        auto f = filename.rfind('/');
+        filename.erase(0, f + 1); //删除文件前缀，只保留文件名
+        cout << filename << endl;
+        FILE *fp = fopen(filename.c_str(), "w");
+
+        cout << "你收到了" << pChat2.getNumber() << "的文件" << filename << endl;
+        cout << "Yes同意接收/No拒绝接收" << endl;
+        while (!(cin >> message) || (message != "Yes" && message != "No"))
+        {
+            if (cin.eof())
+            {
+                cout << "读到文件结束，函数返回" << endl;
+                return;
+            }
+            cout << "输入有误，请重新输入" << endl;
+            cin.clear();
+            cin.ignore(INT32_MAX, '\n');
+        }
+        cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+        ssock::SendMsg(clnt_fd, (void *)message.c_str(), strlen(message.c_str()) + 1);
+        if (message == "Yes")
+        {
+            cout << "接收成功" << endl;
+
+            int n;
+            __off_t size;
+            ssock::ReadMsg(clnt_fd, (void *)&size, sizeof(size));
+            size = ntohl(size);
+            while (size > 0)
+            {
+                if (sizeof(buf) < size)
+                {
+                    n = ssock::Readn(clnt_fd, buf, sizeof(buf));
+                }
+                else
+                {
+                    n = ssock::Readn(clnt_fd, buf, size);
+                }
+                if (n < 0)
+                {
+                    continue;
+                }
+                cout << "size = " << size << endl;
+                size -= n;
+                fwrite(buf, n, 1, fp);
+            }
+
+            fclose(fp);
+        }
+        else
+        {
+            cout << "接收失败" << endl;
+        }
+    }
+}
+
+//向服务器发送100，然后读取信息
 void *continue_receive(void *arg)
 {
     privateChat &pChat = *((privateChat *)arg);
@@ -1012,6 +1111,11 @@ void *continue_receive(void *arg)
         if (pChat2.getFlag() == ADDFRIEND)
         {
             cout << "你收到了来自" << pChat2.getNumber() << "的好友申请，请在申请列表查看" << endl;
+            continue;
+        }
+        if (pChat2.getFlag() == SEND_FILE)
+        {
+            cout << "你收到了来自" << pChat2.getNumber() << "的文件，请去同意或拒绝" << endl;
             continue;
         }
         if (pChat.getFlag() != CHAT_SEND_FRIEND) // flag不等于18，即客户端没有进入聊天，其他人发的连天消息写入到一个列表里，客户端通过该线程读取

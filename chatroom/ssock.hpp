@@ -113,7 +113,7 @@ ssize_t ssock::Read(int fd, void *ptr, size_t nbytes)
 again:
     if ((n = read(fd, ptr, nbytes)) == -1)
     {
-        if (errno == EINTR)
+        if (errno == EINTR || errno == EWOULDBLOCK)
             goto again;
         else
             return -1;

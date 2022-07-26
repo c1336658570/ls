@@ -11,6 +11,9 @@
 #include <hiredis/hiredis.h>
 #include <sys/epoll.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/sendfile.h>
 #include <fcntl.h>
 #include "message.hpp"
 #include "redis1.hpp"
@@ -80,6 +83,8 @@ public:
     int getefd();                //获得根节点
     void history_message();      // 17查看历史聊天记录
     void talkwithfriends();      // 18和朋友聊天
+    void send_file();            // 19从客户端读文件
+    void recv_file();            // 20向客户端发文件
 
 private:
     pthread_mutex_t mutex;
@@ -139,11 +144,13 @@ void startpchat(void *arg)
     {
         g.talkwithfriends();
     }
-    else if ((g.getpChat().getFlag() == SEND_FILE)) // 19向好友发送文件
+    else if ((g.getpChat().getFlag() == SEND_FILE)) // 19接收客户端的文件
     {
+        g.send_file();
     }
-    else if ((g.getpChat().getFlag() == SEND_FILE)) // 20接收好友发送的文件
+    else if ((g.getpChat().getFlag() == RECV_FILE)) // 20向客户端发文件
     {
+        g.recv_file();
     }
 }
 
@@ -645,6 +652,7 @@ void gay::talkwithfriends()
         pChat.From_Json(jn, pChat);  //将序列转为类，会修改原有的套间字
         pChat.setServ_fd(clnt_sock); //将套间字修改回去
 
+        c = Redis::RedisConnect("127.0.0.1", 6379);
         if (strcmp(pChat.getMessage().c_str(), "exit") == 0) //如果发送exit，就退出私聊，然后给自己发exit让自己的接受消息的线程退出
         {
             ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给自己
@@ -654,7 +662,6 @@ void gay::talkwithfriends()
             break;
         }
 
-        c = Redis::RedisConnect("127.0.0.1", 6379);
         //判断发送者发送的人是否是它的好友
         r = Redis::hsetexist(c, pChat.getNumber() + "friend", pChat.getFriendUid());
         if (r == NULL)
@@ -749,6 +756,221 @@ void gay::talkwithfriends()
     ep.events = EPOLLIN | EPOLLET;
     ep.data.fd = clnt_sock;
     int ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+}
+
+// 19从客户端读文件
+void gay::send_file()
+{
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd();
+    char buf[BUFSIZ];
+    json jn, jn2, jn3;
+
+    friends fri, fri2;
+    redisContext *c;
+    redisReply *r;
+
+    int ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    cout << "ret = " << ret << endl;
+    if (ret == 0)
+    {
+        qqqqquit(clnt_sock); //下线
+        return;
+    }
+
+    cout << buf << endl;
+    jn = json::parse(buf);
+    pChat.From_Json(jn, pChat);  //将序列转为类，会修改原有的套间字
+    pChat.setServ_fd(clnt_sock); //将套间字修改回去
+
+    do
+    {
+        c = Redis::RedisConnect("127.0.0.1", 6379);
+
+        //判断发送者发送的人是否是它的好友
+        r = Redis::hsetexist(c, pChat.getNumber() + "friend", pChat.getFriendUid());
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            redisFree(c);
+            break;
+        }
+        if (r->integer == 0) //没有该好友
+        {
+            cout << "没有该好友" << endl;
+            ssock::SendMsg(clnt_sock, "No friend", strlen("No friend") + 1); //将消息转发给自己
+            freeReplyObject(r);
+            redisFree(c);
+            break;
+        }
+        else
+        {
+            ssock::SendMsg(clnt_sock, "Has friend", strlen("Has friend") + 1); //将消息转发给自己
+        }
+        freeReplyObject(r);
+        //判断它是否被它的好友屏蔽了它
+        r = Redis::hgethash(c, pChat.getFriendUid() + "friend", pChat.getNumber());
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            redisFree(c);
+            break;
+        }
+        jn3 = json::parse(r->str);
+        fri2.From_Json(jn3, fri2);
+        if (fri2.getflag() == 0)
+        {
+            cout << "屏蔽了" << endl;
+            ssock::SendMsg(clnt_sock, "Has block", strlen("Has block") + 1); //将消息转发给自己
+            freeReplyObject(r);
+            redisFree(c);
+            break;
+        }
+        else
+        {
+            ssock::SendMsg(clnt_sock, "No block", strlen("No block") + 1);
+        }
+        freeReplyObject(r);
+
+        string filename(pChat.getMessage()); //文件名
+        auto f = filename.rfind('/');
+        filename.erase(0, f + 1);
+        filename.insert(0, "../Temporaryfiles/");
+        FILE *fp = fopen(filename.c_str(), "w");
+
+        //将消息写入一个列表里，然后在客户端从该列表中读取数据，提醒客户端有数据来了
+        r = Redis::listrpush(c, pChat.getFriendUid() + "message", jn.dump().c_str());
+        freeReplyObject(r);
+        //将消息写到一个列表里（包括其中的文件名），让客户端可以知道自己要哪个文件
+        r = Redis::listrpush(c, pChat.getFriendUid() + "file", jn.dump().c_str());
+        freeReplyObject(r);
+
+        int n;
+        //将文件存入本地
+        __off_t size;
+        ssock::ReadMsg(clnt_sock, &size, sizeof(size));
+        cout << "size = " << size << endl;
+        while (size > 0)
+        {
+            if (sizeof(buf) < size)
+            {
+                n = ssock::Readn(clnt_sock, buf, sizeof(buf));
+            }
+            else
+            {
+                n = ssock::Readn(clnt_sock, buf, size);
+            }
+            if (n < 0)
+            {
+                continue;
+            }
+            size -= n;
+            fwrite(buf, n, 1, fp);
+        }
+
+        fclose(fp);
+        redisFree(c);
+    } while (0);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+}
+
+// 20向客户端发送文件
+void gay::recv_file()
+{
+    privateChat pChat2;
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd();
+    char buf[BUFSIZ];
+    json jn, jn2;
+    int ret;
+
+    ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    if (ret == 0)
+    {
+        qqqqquit(clnt_sock);
+        cout << "clnt_sock"
+             << "关闭" << endl;
+        return;
+    }
+    jn = json::parse(buf);
+    pChat.From_Json(jn, pChat);  //将序列转为类，会修改原有的套间字
+    pChat.setServ_fd(clnt_sock); //将套间字修改回去
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r = Redis::listlen(c, pChat.getNumber() + "file");
+    if (r == NULL)
+    {
+        printf("Execut getValue failure\n");
+        redisFree(c);
+    }
+    int listlen = r->integer;
+    freeReplyObject(r);
+
+    for (int i = 0; i < listlen; ++i)
+    {
+        r = Redis::listlpop(c, pChat.getNumber() + "file");
+        cout << r->str << endl;
+        jn2 = json::parse(r->str);
+        pChat2.From_Json(jn2, pChat2); //将会修改pChat中本来的文件描述符
+        ret = ssock::SendMsg(clnt_sock, r->str, strlen(r->str) + 1);
+        if (ret == -1)
+        {
+            qqqqquit(clnt_sock);
+            freeReplyObject(r);
+            return;
+        }
+        freeReplyObject(r);
+        ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+        if (strcmp(buf, "Yes") == 0)
+        {
+            cout << "同意接收" << endl;
+            string filename(pChat2.getMessage()); //文件名
+            auto f = filename.rfind('/');
+            filename.erase(0, f + 1);
+            filename.insert(0, "../Temporaryfiles/");
+            int filefd = open(filename.c_str(), O_RDONLY);
+
+            __off_t size;
+            struct stat file_stat;
+            //为了获取文件大小
+            fstat(filefd, &file_stat);
+            size = file_stat.st_size;
+            size = htonl(size);
+            ssock::SendMsg(clnt_sock, (void *)&size, sizeof(file_stat.st_size));
+            sendfile(clnt_sock, filefd, NULL, file_stat.st_size);
+
+            close(filefd);
+        }
+        else
+        {
+            cout << "拒绝接收" << endl;
+        }
+    }
+    ret = ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+    if (ret == -1)
+    {
+        qqqqquit(clnt_sock);
+        return;
+    }
+
+    redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
     if (ret == -1)
     {
         ssock::perr_exit("epoll_ctr error");
