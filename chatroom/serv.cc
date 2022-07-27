@@ -1,7 +1,7 @@
 #include "servfriend.hpp"
 #include "servlogin.hpp"
 
-int main(void)
+int main(int argc, char *argv[])
 {
     set<string> friends; //保存在线用户的uid。
     list<User> offline;  //保存离线的聊天记录，存放发送消息那个人的user信息，对方上线后在该list中查找
@@ -19,10 +19,16 @@ int main(void)
     int nready, i, clnt_fd;
     int ret;
 
+    if (argc != 3)
+    {
+        printf("Usage : %s <IP> <port>\n", argv[0]);
+        exit(-1);
+    }
+
     serv_fd = ssock::Socket();
     int opt = 1;
     setsockopt(serv_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&opt, sizeof(opt));
-    ssock::Bind(serv_fd, 9999, "127.0.0.1");
+    ssock::Bind(serv_fd, atoi(argv[2]), argv[1]);
     ssock::Listen(serv_fd, 128);
 
     efd = epoll_create(OPEN_MAX);

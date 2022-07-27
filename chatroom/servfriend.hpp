@@ -11,6 +11,7 @@
 #include <hiredis/hiredis.h>
 #include <sys/epoll.h>
 #include <netinet/in.h>
+#include <dirent.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -845,6 +846,11 @@ void gay::send_file()
         auto f = filename.rfind('/');
         filename.erase(0, f + 1);
         filename.insert(0, "../Temporaryfiles/");
+        DIR *d = opendir("../Temporaryfiles");
+        if (d == NULL)
+        {
+            mkdir("../Temporaryfiles", 0777);
+        }
         FILE *fp = fopen(filename.c_str(), "w");
 
         //将消息写入一个列表里，然后在客户端从该列表中读取数据，提醒客户端有数据来了

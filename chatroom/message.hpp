@@ -92,7 +92,7 @@ public:
     {
         return serv_fd;
     }
-    
+
     void print()
     {
         cout << "账号：" << uid << endl
@@ -260,7 +260,30 @@ private:
 //群聊类
 class groupChat
 {
-    int flag; //操作
+};
+
+//群聊信息类
+class groups
+{
+public:
+    void From_Json(const json &jn, groups &g)
+    {
+        jn["group_number"].get_to(g.group_number);
+        jn["user_number"].get_to(g.user_number);
+        jn["flag"].get_to(g.flag);
+    }
+    void To_Json(json &jn, const groups &g)
+    {
+        jn = json{
+            {"group_number", g.group_number},
+            {"user_number", g.user_number},
+            {"flag", g.flag}};
+    }
+
+private:
+    string group_number; //群id
+    string user_number;  //用户id
+    int flag;            //用户权限
 };
 //群通过哈希实现，一个哈希集合，哈希名为群id，里面保存用户uid和用户权限。加入群时需要给每个管理员发送消息。
 
