@@ -626,6 +626,7 @@ void clnt::onlineStatus()
 {
     json jn;
     char buf[BUFSIZ];
+    onlineUser onlineU;
     friends fri;
 
     flag = htonl(flag);
@@ -638,20 +639,23 @@ void clnt::onlineStatus()
     //从对端读消息
     while (1)
     {
+        ssock::ReadMsg(clnt_fd, (void *)&flag, sizeof(flag));
         ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
         if (strcmp(buf, "finish") == 0)
         {
             break;
         }
         jn = json::parse(buf);
-        fri.From_Json(jn, fri);
-        if (fri.getflag() == 1 || fri.getflag() == 0)
+        if (flag == 0)
         {
+            fri.From_Json(jn, fri);
             cout << "uid = " << fri.getfriendUid() << "不在线" << endl;
         }
         else
         {
-            cout << "uid = " << fri.getfriendUid() << "在线" << endl;
+
+            onlineU.From_Json(jn, onlineU);
+            cout << "uid = " << onlineU.getfriendUid() << "在线" << endl;
         }
     }
 }
@@ -964,7 +968,6 @@ void *chat_recv_friend(void *arg) //聊天中接受好友消息的线程
         {
             continue;
         }
-        // cout << buf << endl;
         jn = json::parse(buf);
         pChat2.From_Json(jn, pChat2);
         if (strcmp(pChat2.getMessage().c_str(), "exit") == 0)

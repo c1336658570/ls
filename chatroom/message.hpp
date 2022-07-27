@@ -257,6 +257,54 @@ private:
     int flag;         // 1、好友的状态0屏蔽，1正常   2、在线用户的套间字
 };
 
+class onlineUser //用来保存好友信息，好友uid，加好友权限
+{
+public:
+    void From_Json(const json &jn, onlineUser &u)
+    {
+        jn["friendUid"].get_to(u.friendUid);
+        jn["sock"].get_to(u.sock);
+        jn["flag"].get_to(u.flag);
+    }
+    void To_Json(json &jn, const onlineUser &u)
+    {
+        jn = json{
+            {"friendUid", u.friendUid},
+            {"sock", u.sock},
+            {"flag", u.flag}};
+    }
+
+    void setfriendUid(const string &f)
+    {
+        friendUid = f;
+    }
+    string getfriendUid()
+    {
+        return friendUid;
+    }
+    void setsock(const int &s)
+    {
+        sock = s;
+    }
+    int getsock()
+    {
+        return sock;
+    }
+    void setflag(const int &f)
+    {
+        flag = f;
+    }
+    int getflag()
+    {
+        return flag;
+    }
+
+private:
+    string friendUid; // 在线用户的Uid
+    int sock;         // 套间字
+    int flag;         //有没有在聊天
+};
+
 //群聊信息类
 class groups
 {

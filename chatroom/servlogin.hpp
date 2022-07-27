@@ -169,11 +169,12 @@ bool account::login()
         freeReplyObject(r);
 
         //将在线用户添加到数据库中，key为在线用户，value为在线用户的套间字和uid
-        friends fri;
+        onlineUser onlineU;
         json jn3;
-        fri.setfriendUid(u.getNumber()); //在线用户id
-        fri.setflag(u.getServ_fd());     //在线用户的套间字
-        fri.To_Json(jn3, fri);
+        onlineU.setfriendUid(u.getNumber()); //在线用户id
+        onlineU.setsock(u.getServ_fd());     //在线用户的套间字
+        onlineU.setflag(0);                  //在线用户状态
+        onlineU.To_Json(jn3, onlineU);
         r = Redis::hsetValue(c, "Onlineuser", u.getNumber(), jn3.dump());
         redisFree(c);
 

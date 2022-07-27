@@ -30,7 +30,7 @@ unsigned long long ntohll(unsigned long long val); //网络序转主机序
 void qqqqquit(int clnt_sock) //将其从在线用户中删除
 {
     json jn;
-    friends fri;
+    onlineUser onlineU;
     redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
     redisReply *r = Redis::hgethashall(c, "Onlineuser"); //获取所有在线用户
     if (r == NULL)
@@ -44,11 +44,11 @@ void qqqqquit(int clnt_sock) //将其从在线用户中删除
         if (i % 2 == 1) //偶数是key，奇数是value
         {
             jn = json::parse(r->element[i]->str); //将获得的value序列化
-            fri.From_Json(jn, fri);
-            if (fri.getflag() == clnt_sock) //将value中的套间字和clnt_sock比较，相同就删除该用户
+            onlineU.From_Json(jn, onlineU);
+            if (onlineU.getsock() == clnt_sock) //将value中的套间字和clnt_sock比较，相同就删除该用户
             {
                 freeReplyObject(r);
-                r = Redis::hashdel(c, "Onlineuser", fri.getfriendUid());
+                r = Redis::hashdel(c, "Onlineuser", onlineU.getfriendUid());
                 if (r == NULL)
                 {
                     printf("Execut getValue failure\n");
@@ -476,6 +476,7 @@ void gay::onlineStatus() // 14显示好友在线信息
         redisFree(c);
         return;
     }
+    int flag;
     for (int i = 0; i < r->elements; ++i) //遍历好友列表
     {
         if (i % 2 == 0) //偶数是key，奇数是value
@@ -487,19 +488,24 @@ void gay::onlineStatus() // 14显示好友在线信息
                 redisFree(c);
                 return;
             }
+            flag = r2->integer;
+            flag = htonl(flag);
             if (r2->integer == 0) //好友不在线
             {
+                ssock::SendMsg(clnt_sock, (void *)&flag, sizeof(flag));                                //发送0表示不在线
                 ssock::SendMsg(clnt_sock, r->element[i + 1]->str, strlen(r->element[i + 1]->str) + 1); //将得到的value发送给对端
             }
             else //好友在线
             {
                 freeReplyObject(r2);
                 r2 = Redis::hgethash(c, "Onlineuser", r->element[i]->str);
+                ssock::SendMsg(clnt_sock, (void *)&flag, sizeof(flag)); //发送其他数字表示在线
                 ssock::SendMsg(clnt_sock, r2->str, strlen(r2->str) + 1);
             }
             freeReplyObject(r2);
         }
     }
+    ssock::SendMsg(clnt_sock, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
 
     freeReplyObject(r);
@@ -508,6 +514,7 @@ void gay::onlineStatus() // 14显示好友在线信息
     //执行完添加后将文件描述符挂上监听红黑树
     ep.events = EPOLLIN | EPOLLET;
     ep.data.fd = clnt_sock;
+    cout << efd << endl;
     int ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
     if (ret == -1)
     {
@@ -634,14 +641,18 @@ void gay::history_message()
 // 18和好友聊天
 void gay::talkwithfriends()
 {
+    int flag = 0; //定义一个标记，在第一次进入循环时改变自己的状态
     struct epoll_event ep;
     int clnt_sock = pChat.getServ_fd();
+    privateChat pChat2;
     char buf[BUFSIZ];
-    json jn, jn2, jn3;
+    json jn, jn2, jn3, jn4;
+    onlineUser onlineU, onlineU2;
+    friends fri;
 
-    friends fri, fri2;
     redisContext *c;
     redisReply *r;
+    c = Redis::RedisConnect("127.0.0.1", 6379);
 
     while (1)
     {
@@ -657,8 +668,18 @@ void gay::talkwithfriends()
         jn = json::parse(buf);
         pChat.From_Json(jn, pChat);  //将序列转为类，会修改原有的套间字
         pChat.setServ_fd(clnt_sock); //将套间字修改回去
+        if (flag == 0)
+        {
+            r = Redis::hgethash(c, "Onlineuser", pChat.getNumber());
+            jn4 = json::parse(r->str);
+            onlineU2.From_Json(jn4, onlineU2); //将自己的状态改为聊天
+            onlineU2.setflag(18);
+            onlineU2.To_Json(jn4, onlineU2); //将jn修改
+            freeReplyObject(r);
+            r = Redis::hsetValue(c, "Onlineuser", onlineU2.getfriendUid(), jn4.dump()); //将自己修改后的状态写入数据库
+            freeReplyObject(r);
+        }
 
-        c = Redis::RedisConnect("127.0.0.1", 6379);
         if (strcmp(pChat.getMessage().c_str(), "exit") == 0) //如果发送exit，就退出私聊，然后给自己发exit让自己的接受消息的线程退出
         {
             ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给自己
@@ -693,8 +714,8 @@ void gay::talkwithfriends()
             continue;
         }
         jn3 = json::parse(r->str);
-        fri2.From_Json(jn3, fri2);
-        if (fri2.getflag() == 0)
+        fri.From_Json(jn3, fri);
+        if (fri.getflag() == 0)
         {
             cout << "屏蔽了" << endl;
             continue;
@@ -741,9 +762,12 @@ void gay::talkwithfriends()
             continue;
         }
         jn2 = json::parse(r->str);
-        fri.From_Json(jn2, fri);
+        onlineU.From_Json(jn2, onlineU);
         cout << jn.dump() << endl;
-        ret = ssock::SendMsg(fri.getflag(), jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给好友
+        if (onlineU.getflag() == 18)
+        {
+            ret = ssock::SendMsg(onlineU.getsock(), jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给好友
+        }
 
         freeReplyObject(r);
 
@@ -757,6 +781,17 @@ void gay::talkwithfriends()
         r = Redis::listrpush(c, pChat.getFriendUid() + "history" + pChat.getNumber(), jn.dump().c_str());
         freeReplyObject(r);
     }
+
+    r = Redis::hgethash(c, "Onlineuser", pChat.getNumber());
+    cout << "r->str = " << r->str;
+    jn = json::parse(r->str);
+    onlineU2.From_Json(jn, onlineU2); //将自己的状态改为不聊天
+    onlineU2.setflag(0);
+    onlineU2.To_Json(jn, onlineU2); //将jn修改
+    freeReplyObject(r);
+    r = Redis::hsetValue(c, "Onlineuser", onlineU2.getfriendUid(), jn.dump()); //将自己修改后的状态写入数据库
+    freeReplyObject(r);
+    redisFree(c);
 
     //执行完添加后将文件描述符挂上监听红黑树
     ep.events = EPOLLIN | EPOLLET;
