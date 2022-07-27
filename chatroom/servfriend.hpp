@@ -960,7 +960,6 @@ void gay::recv_file()
             cout << "file_stat.st_size = " << file_stat.st_size << endl;
             while ((ret = sendfile(clnt_sock, filefd, NULL, file_stat.st_size)) != 0)
             {
-                perror("sendfile error");
             }
             cout << "ret = " << ret << endl;
 

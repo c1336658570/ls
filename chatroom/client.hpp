@@ -18,31 +18,33 @@ void *continue_receive(void *arg);                 //持续从服务器读数据
 unsigned long long htonll(unsigned long long val); //主机序转网络序
 unsigned long long ntohll(unsigned long long val); //网络序转主机序
 
+char **argv;
+
 class clnt
 {
 public:
     //菜单
-    void show_Menu1();       //登录账号
-    void show_Meun2();       //登录后界面
-    void show_Menu3();       //好友管理
-    void show_Menu4();       //私聊菜单
-    int getclntfd();         //获取客户端套间字
-    void read_account();     //账号输入
-    void login();            // 1登录
-    void reg();              // 2注册
-    void retrieve();         // 3找回密码
-    void quit();             // 4退出
-    void signout();          // 9退出登录
-    void addFriend();        // 10添加好友
-    void inquireAdd();       // 11查看好友添加信息
-    void delFriend();        // 12删除好友
-    void findFriend();       // 13查询好友
-    void onlineStatus();     // 14显示好友在线情况
-    void blockFriend();      // 15屏蔽或解除屏蔽好友消息
-    void history_message();  // 17历史聊天记录
-    void chat_send_friend(); // 18给好友发消息
-    void send_file();        // 19发送文件
-    void recv_file();        // 20接收文件
+    void show_Menu1(char *arg[]); //登录账号
+    void show_Meun2();            //登录后界面
+    void show_Menu3();            //好友管理
+    void show_Menu4();            //私聊菜单
+    int getclntfd();              //获取客户端套间字
+    void read_account();          //账号输入
+    void login();                 // 1登录
+    void reg();                   // 2注册
+    void retrieve();              // 3找回密码
+    void quit();                  // 4退出
+    void signout();               // 9退出登录
+    void addFriend();             // 10添加好友
+    void inquireAdd();            // 11查看好友添加信息
+    void delFriend();             // 12删除好友
+    void findFriend();            // 13查询好友
+    void onlineStatus();          // 14显示好友在线情况
+    void blockFriend();           // 15屏蔽或解除屏蔽好友消息
+    void history_message();       // 17历史聊天记录
+    void chat_send_friend();      // 18给好友发消息
+    void send_file();             // 19发送文件
+    void recv_file();             // 20接收文件
 
 private:
     uint32_t flag;     //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
@@ -51,8 +53,9 @@ private:
     int clnt_fd;       //客户端套间字
 };
 
-void clnt::show_Menu1()
+void clnt::show_Menu1(char *arg[])
 {
+    argv = arg;
     while (1)
     {
         cout << "请输入你要执行的操作" << endl;
@@ -141,7 +144,7 @@ void clnt::read_account()
 void clnt::login() //登录
 {
     clnt_fd = ssock::Socket();
-    ssock::Connect(clnt_fd, 9999, "127.0.0.1");
+    ssock::Connect(clnt_fd, atoi(argv[2]), argv[1]);
 
     read_account();
     flag = htonl(flag);
@@ -220,7 +223,7 @@ void clnt::reg()
     u.setName(name); //设置昵称
 
     int clnt_fd = ssock::Socket();
-    ssock::Connect(clnt_fd, 9999, "127.0.0.1");
+    ssock::Connect(clnt_fd, atoi(argv[2]), argv[1]);
 
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
@@ -284,7 +287,7 @@ void clnt::retrieve() //找回密码
     u.setKey(key);
 
     int clnt_fd = ssock::Socket();
-    ssock::Connect(clnt_fd, 9999, "127.0.0.1");
+    ssock::Connect(clnt_fd, atoi(argv[2]), argv[1]);
 
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
@@ -1090,7 +1093,7 @@ void *continue_receive(void *arg)
     json jn;
     privateChat pChat2;
     int clnt_fd = ssock::Socket();
-    ssock::Connect(clnt_fd, 9999, "127.0.0.1");
+    ssock::Connect(clnt_fd, atoi(argv[2]), argv[1]);
 
     while (1)
     {
