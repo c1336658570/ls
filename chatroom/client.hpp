@@ -7,13 +7,16 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/sendfile.h>
+#include <signal.h>
 #include "message.hpp"
 #include "ssock.hpp"
 #include "macro.h"
 using namespace std;
 
-void *chat_recv_friend(void *arg); //接受好友消息的线程
-void *continue_receive(void *arg); //持续从服务器读数据的线程
+void *chat_recv_friend(void *arg);                 //接受好友消息的线程
+void *continue_receive(void *arg);                 //持续从服务器读数据的线程
+unsigned long long htonll(unsigned long long val); //主机序转网络序
+unsigned long long ntohll(unsigned long long val); //网络序转主机序
 
 class clnt
 {
@@ -88,6 +91,16 @@ void clnt::show_Menu1()
     }
 }
 
+void setblocksignal()
+{
+    sigset_t set;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGPIPE);
+    sigaddset(&set, SIGBUS);
+    sigprocmask(SIG_BLOCK, &set, NULL);
+}
+
 //账号输入
 void clnt::read_account()
 {
@@ -157,7 +170,7 @@ void clnt::login() //登录
     {
         pthread_t tid;
         cout << "登录成功" << endl;
-
+        setblocksignal();
         jn = json::parse(buf);
         u.From_Json(jn, u);
         u.print();
@@ -967,11 +980,18 @@ void clnt::send_file()
         return;
     }
 
+    __off_t size;
     struct stat file_stat;
     //为了获取文件大小
     fstat(filefd, &file_stat);
-    ssock::SendMsg(clnt_fd, (void *)&file_stat.st_size, sizeof(file_stat.st_size));
-    sendfile(clnt_fd, filefd, NULL, file_stat.st_size);
+    size = file_stat.st_size;
+    size = htonll(size);
+    ssock::SendMsg(clnt_fd, (void *)&size, sizeof(size));
+
+    int ret;
+    while ((ret = sendfile(clnt_fd, filefd, NULL, file_stat.st_size)) != 0)
+    {
+    }
 
     close(filefd);
 }
@@ -1032,7 +1052,7 @@ void clnt::recv_file()
             int n;
             __off_t size;
             ssock::ReadMsg(clnt_fd, (void *)&size, sizeof(size));
-            size = ntohl(size);
+            size = ntohll(size);
             while (size > 0)
             {
                 if (sizeof(buf) < size)
@@ -1122,6 +1142,32 @@ void *continue_receive(void *arg)
         {
             cout << "你收到了来自" << pChat2.getNumber() << "的一条消息，请在历史记录中查看" << endl;
         }
+    }
+}
+
+//主机序转网络序
+unsigned long long htonll(unsigned long long val)
+{
+    if (__BYTE_ORDER == __LITTLE_ENDIAN)
+    {
+        return (((unsigned long long)htonl((int)((val << 32) >> 32))) << 32) | (unsigned int)htonl((int)(val >> 32));
+    }
+    else if (__BYTE_ORDER == __BIG_ENDIAN)
+    {
+        return val;
+    }
+}
+
+//网络序转主机序
+unsigned long long ntohll(unsigned long long val)
+{
+    if (__BYTE_ORDER == __LITTLE_ENDIAN)
+    {
+        return (((unsigned long long)ntohl((int)((val << 32) >> 32))) << 32) | (unsigned int)ntohl((int)(val >> 32));
+    }
+    else if (__BYTE_ORDER == __BIG_ENDIAN)
+    {
+        return val;
     }
 }
 

@@ -10,16 +10,21 @@
 #include "redis1.hpp"
 #include <hiredis/hiredis.h>
 #include <sys/epoll.h>
+#include <netinet/in.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/sendfile.h>
 #include <fcntl.h>
+#include <errno.h>
 #include "message.hpp"
 #include "redis1.hpp"
 #include "threadpool.hpp"
 #include "macro.h"
 using namespace std;
+
+unsigned long long htonll(unsigned long long val); //主机序转网络序
+unsigned long long ntohll(unsigned long long val); //网络序转主机序
 
 void qqqqquit(int clnt_sock) //将其从在线用户中删除
 {
@@ -853,6 +858,7 @@ void gay::send_file()
         //将文件存入本地
         __off_t size;
         ssock::ReadMsg(clnt_sock, &size, sizeof(size));
+        size = ntohll(size);
         cout << "size = " << size << endl;
         while (size > 0)
         {
@@ -871,6 +877,7 @@ void gay::send_file()
             size -= n;
             fwrite(buf, n, 1, fp);
         }
+        cout << "size = " << size << endl;
 
         fclose(fp);
         redisFree(c);
@@ -947,9 +954,15 @@ void gay::recv_file()
             //为了获取文件大小
             fstat(filefd, &file_stat);
             size = file_stat.st_size;
-            size = htonl(size);
+            size = htonll(size);
+
             ssock::SendMsg(clnt_sock, (void *)&size, sizeof(file_stat.st_size));
-            sendfile(clnt_sock, filefd, NULL, file_stat.st_size);
+            cout << "file_stat.st_size = " << file_stat.st_size << endl;
+            while ((ret = sendfile(clnt_sock, filefd, NULL, file_stat.st_size)) != 0)
+            {
+                perror("sendfile error");
+            }
+            cout << "ret = " << ret << endl;
 
             close(filefd);
         }
@@ -1039,6 +1052,32 @@ void *continue_send(void *arg)
     }
 
     return NULL;
+}
+
+//主机序转网络序
+unsigned long long htonll(unsigned long long val)
+{
+    if (__BYTE_ORDER == __LITTLE_ENDIAN)
+    {
+        return (((unsigned long long)htonl((int)((val << 32) >> 32))) << 32) | (unsigned int)htonl((int)(val >> 32));
+    }
+    else if (__BYTE_ORDER == __BIG_ENDIAN)
+    {
+        return val;
+    }
+}
+
+//网络序转主机序
+unsigned long long ntohll(unsigned long long val)
+{
+    if (__BYTE_ORDER == __LITTLE_ENDIAN)
+    {
+        return (((unsigned long long)ntohl((int)((val << 32) >> 32))) << 32) | (unsigned int)ntohl((int)(val >> 32));
+    }
+    else if (__BYTE_ORDER == __BIG_ENDIAN)
+    {
+        return val;
+    }
 }
 
 #endif

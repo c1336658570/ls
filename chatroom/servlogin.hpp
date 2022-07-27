@@ -99,6 +99,7 @@ void setsp()
 
     sigemptyset(&set);
     sigaddset(&set, SIGPIPE);
+    sigaddset(&set, SIGBUS);
     sigprocmask(SIG_BLOCK, &set, NULL);
 }
 
