@@ -28,6 +28,8 @@ public:
     void show_Meun2();            //登录后界面
     void show_Menu3();            //好友管理
     void show_Menu4();            //私聊菜单
+    void show_Menu5();            //群管理菜单
+    void show_Menu6();            //群聊菜单
     int getclntfd();              //获取客户端套间字
     void read_account();          //账号输入
     void login();                 // 1登录
@@ -45,6 +47,7 @@ public:
     void chat_send_friend();      // 18给好友发消息
     void send_file();             // 19发送文件
     void recv_file();             // 20接收文件
+    void creategroup();           // 22创建群
 
 private:
     uint32_t flag;     //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
@@ -353,14 +356,16 @@ void clnt::show_Meun2() // 5好友管理，6私聊，7群管理，8群聊，9退
         switch (flag)
         {
         case SHOW_MENU3:
-            clnt::show_Menu3();
+            show_Menu3();
             break;
         case SHOW_MENU4:
-            clnt::show_Menu4();
+            show_Menu4();
             break;
         case SHOW_MENU5:
+            show_Menu5();
             break;
         case SHOW_MENU6:
+            show_Menu6();
             break;
         case SIGNOUT:
             signout();
@@ -760,6 +765,74 @@ void clnt::show_Menu4()
     }
 }
 
+void clnt::show_Menu5()
+{
+    while (1)
+    {
+        flag = 0;
+        cout << "请输入要执行的操作" << endl;
+        cout << "22、创建群" << endl;
+        cout << "23、解散群" << endl;
+        cout << "24、加入群" << endl;
+        cout << "25、退出群" << endl;
+        cout << "26、查看已加入的群组" << endl;
+        cout << "27、查看群组成员" << endl;
+        cout << "28、设置管理员" << endl;
+        cout << "29、取消管理员" << endl;
+        cout << "30、查看群组成员申请列表" << endl;
+        cout << "31、从群组中移除用户" << endl;
+        cout << "32、返回上一层" << endl;
+
+        while (!(cin >> flag) || flag < 22 || flag > 32)
+        {
+            if (cin.eof())
+            {
+                cout << "读到文件结束，函数返回" << endl;
+                return;
+            }
+            cout << "输入有误" << endl;
+            cin.clear();
+            cin.ignore(INT32_MAX, '\n');
+        }
+        cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+        pChat.setFlag(flag);
+        if (flag == RETURNON2)
+        {
+            break;
+        }
+        switch (flag)
+        {
+        case CREATEGROUP:
+            creategroup();
+            break;
+        case DISSOLVEGROUP:
+            break;
+        case JOINGROUP:
+            break;
+        case QUITGROUP:
+            break;
+        case HASJOINGROUP:
+            break;
+        case GROUPMEMBERS:
+            break;
+        case PULLMANAGEPEPOLE:
+            break;
+        case KICKMANAGEPEOPLE:
+            break;
+        case GROUPAPPLICATION:
+            break;
+        case KICKPEOPLE:
+            break;
+        case RETURNON3:
+            break;
+        }
+    }
+}
+void clnt::show_Menu6()
+{
+}
+
 // 17查看历史聊天记录
 void clnt::history_message()
 {
@@ -767,6 +840,7 @@ void clnt::history_message()
     string number;
     json jn;
     char buf[BUFSIZ];
+    privateChat pChat2;
 
     cout << "请输入你要查看uid，不要超过20个字符" << endl;
     while (!(cin >> number) || number.size() > 20)
@@ -803,10 +877,10 @@ void clnt::history_message()
             break;
         }
         jn = json::parse(buf);
-        pChat.From_Json(jn, pChat);
-        cout << pChat.getTimeNow()
-             << pChat.getNumber() << "："
-             << pChat.getMessage() << endl;
+        pChat2.From_Json(jn, pChat2);
+        cout << pChat2.getTimeNow()
+             << pChat2.getNumber() << "："
+             << pChat2.getMessage() << endl;
     }
 }
 
@@ -857,7 +931,6 @@ void clnt::chat_send_friend()
             cout << "读到文件结尾，函数返回" << endl;
             break;
         }
-        cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
 
         pChat.setTimeNow(); //设置时间
         pChat.setMessage(message);
@@ -872,6 +945,7 @@ void clnt::chat_send_friend()
 
 void *chat_recv_friend(void *arg) //聊天中接受好友消息的线程
 {
+    privateChat pChat2;
     json jn;
     privateChat pChat = *((privateChat *)arg);
 
@@ -892,19 +966,15 @@ void *chat_recv_friend(void *arg) //聊天中接受好友消息的线程
         }
         // cout << buf << endl;
         jn = json::parse(buf);
-        pChat.From_Json(jn, pChat);
-        if (strcmp(pChat.getMessage().c_str(), "exit") == 0)
+        pChat2.From_Json(jn, pChat2);
+        if (strcmp(pChat2.getMessage().c_str(), "exit") == 0)
         {
             break;
         }
-        if (number == pChat.getNumber())
-            cout << pChat.getTimeNow()
-                 << pChat.getNumber() << endl
-                 << pChat.getMessage() << endl;
-        else
-        {
-            cout << "你收到了" << pChat.getNumber() << "的消息" << endl;
-        }
+        if (number == pChat2.getNumber())
+            cout << pChat2.getTimeNow()
+                 << pChat2.getNumber() << endl
+                 << pChat2.getMessage() << endl;
     }
 
     return NULL;
@@ -1031,7 +1101,6 @@ void clnt::recv_file()
         auto f = filename.rfind('/');
         filename.erase(0, f + 1); //删除文件前缀，只保留文件名
         cout << filename << endl;
-        FILE *fp = fopen(filename.c_str(), "w");
 
         cout << "你收到了" << pChat2.getNumber() << "的文件" << filename << endl;
         cout << "Yes同意接收/No拒绝接收" << endl;
@@ -1051,7 +1120,7 @@ void clnt::recv_file()
         if (message == "Yes")
         {
             cout << "接收成功" << endl;
-
+            FILE *fp = fopen(filename.c_str(), "w");
             int n;
             __off_t size;
             ssock::ReadMsg(clnt_fd, (void *)&size, sizeof(size));
@@ -1082,6 +1151,10 @@ void clnt::recv_file()
             cout << "接收失败" << endl;
         }
     }
+}
+
+void clnt::creategroup()
+{
 }
 
 //向服务器发送100，然后读取信息
@@ -1122,6 +1195,7 @@ void *continue_receive(void *arg)
         }
         if (strcmp(buf, "finish") == 0)
         {
+            memset(buf, 0, sizeof(buf));
             continue;
         }
         jn = json::parse(buf);
@@ -1141,10 +1215,14 @@ void *continue_receive(void *arg)
             cout << "你收到了来自" << pChat2.getNumber() << "的文件，请去同意或拒绝" << endl;
             continue;
         }
-        if (pChat.getFlag() != CHAT_SEND_FRIEND) // flag不等于18，即客户端没有进入聊天，其他人发的连天消息写入到一个列表里，客户端通过该线程读取
+        if (pChat.getFlag() == CHAT_SEND_FRIEND)
         {
-            cout << "你收到了来自" << pChat2.getNumber() << "的一条消息，请在历史记录中查看" << endl;
+            if (pChat2.getNumber() == pChat.getFriendUid())
+            {
+                continue;
+            }
         }
+        cout << "你收到了来自" << pChat2.getNumber() << "的一条消息，请在历史记录中查看" << endl;
     }
 }
 

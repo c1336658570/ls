@@ -26,15 +26,17 @@
 #define DISSOLVEGROUP 23        //解散群
 #define JOINGROUP 24            //加入群
 #define QUITGROUP 25            //退出群
-#define HASJOINGROUP 26         //查看已加入的群组
-#define PULLMANAGEPEPOLE 27     //设置管理员
-#define KICKMANAGEPEOPLE 28     //取消管理员
-#define GROUPAPPLICATION 29     //查看群组申请列表，进行同意或拒绝
-#define KICKPEOPLE 30           //群组管理员/群主从群组中移除用户
-#define RETURNON3 31            //返回上一层
-#define HISTORY_GROUPMESSAGE 32 //查看群历史消息记录
-#define CHAT_SEND_GROUP 33      //给群发消息
-#define SEND_FILE_GROUP 34      //给群发文件
-#define RECV_FILE_GROUP 35      //接收群文件
+#define HASJOINGROUP 26         //查看已加入的群组（包括权限）
+#define GROUPMEMBERS 27         //查看群组成员（包括权限）
+#define PULLMANAGEPEPOLE 28     //设置管理员
+#define KICKMANAGEPEOPLE 29     //取消管理员
+#define GROUPAPPLICATION 30     //查看群组申请列表，进行同意或拒绝
+#define KICKPEOPLE 31           //群组管理员/群主从群组中移除用户
+#define RETURNON3 32            //返回上一层
+#define HISTORY_GROUPMESSAGE 33 //查看群历史消息记录
+#define CHAT_SEND_GROUP 34      //给群发消息
+#define SEND_FILE_GROUP 35      //给群发文件
+#define RECV_FILE_GROUP 36      //接收群文件
+#define RETURNON4 37            //返回上一层
 
 #endif

@@ -108,7 +108,7 @@ private:
     int flag;      //操作，1登陆，2注册，3找回密码，4退出
 };
 
-//私聊类
+//聊天类
 class privateChat
 {
 public:
@@ -255,11 +255,6 @@ public:
 private:
     string friendUid; // 1、朋友的Uid  2、在线用户的uid
     int flag;         // 1、好友的状态0屏蔽，1正常   2、在线用户的套间字
-};
-
-//群聊类
-class groupChat
-{
 };
 
 //群聊信息类
