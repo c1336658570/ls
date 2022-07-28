@@ -257,6 +257,12 @@ private:
     int flag;         // 1、好友的状态0屏蔽，1正常   2、在线用户的套间字
 };
 
+struct file //保存打开的文件描述符和要发送的客户端文件描述符
+{
+    int filefd;
+    int clnt_sock;
+};
+
 class onlineUser //用来保存好友信息，好友uid，加好友权限
 {
 public:

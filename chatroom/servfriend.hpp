@@ -889,13 +889,6 @@ void gay::send_file()
         }
         FILE *fp = fopen(filename.c_str(), "w");
 
-        //将消息写入一个列表里，然后在客户端从该列表中读取数据，提醒客户端有数据来了
-        r = Redis::listrpush(c, pChat.getFriendUid() + "message", jn.dump().c_str());
-        freeReplyObject(r);
-        //将消息写到一个列表里（包括其中的文件名），让客户端可以知道自己要哪个文件
-        r = Redis::listrpush(c, pChat.getFriendUid() + "file", jn.dump().c_str());
-        freeReplyObject(r);
-
         int n;
         //将文件存入本地
         __off_t size;
@@ -918,8 +911,15 @@ void gay::send_file()
             }
             size -= n;
             fwrite(buf, n, 1, fp);
+            cout << "size = " << size << endl;
         }
-        cout << "size = " << size << endl;
+
+        //将消息写入一个列表里，然后在客户端从该列表中读取数据，提醒客户端有数据来了
+        r = Redis::listrpush(c, pChat.getFriendUid() + "message", jn.dump().c_str());
+        freeReplyObject(r);
+        //将消息写到一个列表里（包括其中的文件名），让客户端可以知道自己要哪个文件
+        r = Redis::listrpush(c, pChat.getFriendUid() + "file", jn.dump().c_str());
+        freeReplyObject(r);
 
         fclose(fp);
         redisFree(c);
