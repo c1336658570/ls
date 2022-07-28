@@ -998,7 +998,7 @@ void gay::recv_file()
             size = file_stat.st_size;
             size = htonll(size);
 
-            ssock::SendMsg(clnt_sock, (void *)&size, sizeof(file_stat.st_size));
+            ssock::SendMsg(clnt_sock, (void *)&size, sizeof(size));
             cout << "file_stat.st_size = " << file_stat.st_size << endl;
             while ((ret = sendfile(clnt_sock, filefd, NULL, file_stat.st_size)) != 0)
             {

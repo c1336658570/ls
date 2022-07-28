@@ -18,6 +18,7 @@ void *continue_receive(void *arg);                 //持续从服务器读数据
 void *pthread_send_file(void *arg);                //专门发文件的线程
 unsigned long long htonll(unsigned long long val); //主机序转网络序
 unsigned long long ntohll(unsigned long long val); //网络序转主机序
+void *pthread_recv_file(void *arg);                //收文件的线程
 
 char **argv;
 
@@ -1003,6 +1004,7 @@ void clnt::send_file()
     pthread_detach(tid);
 }
 
+//发文件的线程
 void *pthread_send_file(void *arg)
 {
     file *f = (file *)arg;
