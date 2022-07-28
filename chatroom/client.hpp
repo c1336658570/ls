@@ -52,6 +52,9 @@ public:
     void creategroup();           // 22创建群
     void dissolvegroup();         // 23 解散群
     void joingroup();             // 24加入群
+    void quitgroup();             // 25退出群
+    void hasjoingroup();          // 26查看已加入的群组
+    void groupmembers();          // 27查看群组成员
 
 private:
     uint32_t flag;     //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
@@ -1150,20 +1153,23 @@ void clnt::show_Menu5()
         }
         switch (flag)
         {
-        case CREATEGROUP:
+        case CREATEGROUP: // 22创建群
             creategroup();
             break;
-        case DISSOLVEGROUP:
+        case DISSOLVEGROUP: // 23 解散群
             dissolvegroup();
             break;
-        case JOINGROUP:
+        case JOINGROUP: // 24加入群
             joingroup();
             break;
-        case QUITGROUP:
+        case QUITGROUP: // 25退出群
+            quitgroup();
             break;
-        case HASJOINGROUP:
+        case HASJOINGROUP: // 26查看已加入的群组
+            hasjoingroup();
             break;
-        case GROUPMEMBERS:
+        case GROUPMEMBERS: // 27、查看群组成员
+            groupmembers();
             break;
         case PULLMANAGEPEPOLE:
             break;
@@ -1308,9 +1314,101 @@ void clnt::joingroup()
     {
         cout << "加入失败，没有该群" << endl;
     }
+    else if (strcmp(buf, "you are already a member of this group") == 0)
+    {
+        cout << "你已经是该群成员" << endl;
+    }
     else if (strcmp(buf, "Yes") == 0)
     {
         cout << "加入成功" << endl;
+    }
+}
+
+// 25退出群
+void clnt::quitgroup()
+{
+    json jn;
+    string groupid;
+    cout << "请输入你要退出的群号，请不要超过20个字符，也不要包含空格" << endl;
+    while (!(cin >> groupid) || groupid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+    pChat.setFriendUid(groupid);    //设置群号
+    pChat.To_Json(jn, pChat);
+
+    flag = htonl(flag); //发送要进行的操作
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    char buf[50];
+    //从服务器读，看是否解散群成功
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+
+    if (strcmp(buf, "No group") == 0)
+    {
+        cout << "退出失败，没有该群" << endl;
+    }
+    else if (strcmp(buf, "you are not a member of this group") == 0)
+    {
+        cout << "你不是该群成员" << endl;
+    }
+    else if (strcmp(buf, "you are the leader") == 0)
+    {
+        cout << "你是群主，不能退群" << endl;
+    }
+    else if (strcmp(buf, "Yes") == 0)
+    {
+        cout << "退出成功" << endl;
+    }
+}
+
+// 26查看已加入的群组
+void clnt::hasjoingroup()
+{
+    json jn;
+    groups grps;
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+    pChat.To_Json(jn, pChat);
+
+    flag = htonl(flag); //发送要进行的操作
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    char buf[BUFSIZ];
+    //从服务器读自己加入的群
+    while (1)
+    {
+        ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+        if (strcmp(buf, "finish") == 0)
+        {
+            break;
+        }
+        jn = json::parse(buf);
+        grps.From_Json(jn, grps);
+        if (grps.getflag() == 0)
+            cout << "groupid：" << grps.getgroup_number() << "，权限："
+                 << "普通成员" << endl;
+        if (grps.getflag() == 1)
+            cout << "groupid：" << grps.getgroup_number() << "，权限："
+                 << "管理员" << endl;
+        if (grps.getflag() == 2)
+            cout << "groupid：" << grps.getgroup_number() << "，权限："
+                 << "群主" << endl;
     }
 }
 
