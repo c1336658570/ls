@@ -48,6 +48,8 @@ public:
     void send_file();             // 19发送文件
     void recv_file();             // 20接收文件
     void creategroup();           // 22创建群
+    void dissolvegroup();         // 23 解散群
+    void joingroup();             // 24加入群
 
 private:
     uint32_t flag;     //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
@@ -655,7 +657,7 @@ void clnt::onlineStatus()
         {
 
             onlineU.From_Json(jn, onlineU);
-            cout << "uid = " << onlineU.getfriendUid() << "在线" << endl;
+            cout << "uid = " << onlineU.getUid() << "在线" << endl;
         }
     }
 }
@@ -769,70 +771,6 @@ void clnt::show_Menu4()
     }
 }
 
-void clnt::show_Menu5()
-{
-    while (1)
-    {
-        flag = 0;
-        cout << "请输入要执行的操作" << endl;
-        cout << "22、创建群" << endl;
-        cout << "23、解散群" << endl;
-        cout << "24、加入群" << endl;
-        cout << "25、退出群" << endl;
-        cout << "26、查看已加入的群组" << endl;
-        cout << "27、查看群组成员" << endl;
-        cout << "28、设置管理员" << endl;
-        cout << "29、取消管理员" << endl;
-        cout << "30、查看群组成员申请列表" << endl;
-        cout << "31、从群组中移除用户" << endl;
-        cout << "32、返回上一层" << endl;
-
-        while (!(cin >> flag) || flag < 22 || flag > 32)
-        {
-            if (cin.eof())
-            {
-                cout << "读到文件结束，函数返回" << endl;
-                return;
-            }
-            cout << "输入有误" << endl;
-            cin.clear();
-            cin.ignore(INT32_MAX, '\n');
-        }
-        cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
-
-        pChat.setFlag(flag);
-        if (flag == RETURNON2)
-        {
-            break;
-        }
-        switch (flag)
-        {
-        case CREATEGROUP:
-            creategroup();
-            break;
-        case DISSOLVEGROUP:
-            break;
-        case JOINGROUP:
-            break;
-        case QUITGROUP:
-            break;
-        case HASJOINGROUP:
-            break;
-        case GROUPMEMBERS:
-            break;
-        case PULLMANAGEPEPOLE:
-            break;
-        case KICKMANAGEPEOPLE:
-            break;
-        case GROUPAPPLICATION:
-            break;
-        case KICKPEOPLE:
-            break;
-        case RETURNON3:
-            break;
-        }
-    }
-}
 void clnt::show_Menu6()
 {
 }
@@ -1156,8 +1094,206 @@ void clnt::recv_file()
     }
 }
 
-void clnt::creategroup()
+void clnt::show_Menu5()
 {
+    while (1)
+    {
+        flag = 0;
+        cout << "请输入要执行的操作" << endl;
+        cout << "22、创建群" << endl;
+        cout << "23、解散群" << endl;
+        cout << "24、加入群" << endl;
+        cout << "25、退出群" << endl;
+        cout << "26、查看已加入的群组" << endl;
+        cout << "27、查看群组成员" << endl;
+        cout << "28、设置管理员" << endl;
+        cout << "29、取消管理员" << endl;
+        cout << "30、查看群组成员申请列表" << endl;
+        cout << "31、从群组中移除用户" << endl;
+        cout << "32、返回上一层" << endl;
+
+        while (!(cin >> flag) || flag < 22 || flag > 32)
+        {
+            if (cin.eof())
+            {
+                cout << "读到文件结束，函数返回" << endl;
+                return;
+            }
+            cout << "输入有误" << endl;
+            cin.clear();
+            cin.ignore(INT32_MAX, '\n');
+        }
+        cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+        pChat.setFlag(flag);
+        if (flag == RETURNON3)
+        {
+            break;
+        }
+        switch (flag)
+        {
+        case CREATEGROUP:
+            creategroup();
+            break;
+        case DISSOLVEGROUP:
+            dissolvegroup();
+            break;
+        case JOINGROUP:
+            joingroup();
+            break;
+        case QUITGROUP:
+            break;
+        case HASJOINGROUP:
+            break;
+        case GROUPMEMBERS:
+            break;
+        case PULLMANAGEPEPOLE:
+            break;
+        case KICKMANAGEPEOPLE:
+            break;
+        case GROUPAPPLICATION:
+            break;
+        case KICKPEOPLE:
+            break;
+        case RETURNON3:
+            break;
+        }
+    }
+}
+
+void clnt::creategroup() // 22创建群
+{
+    json jn;
+    string groupid;
+    cout << "请输入你要创建的群号，请不要超过20个字符，也不要包含空格" << endl;
+    while (!(cin >> groupid) || groupid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+    pChat.setFriendUid(groupid);    //设置群号
+    pChat.To_Json(jn, pChat);
+
+    flag = htonl(flag); //发送要进行的操作
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    char buf[10];
+    //从服务器读，看是否注册群成功
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+
+    if (strcmp(buf, "No") == 0)
+    {
+        cout << "创建失败，群已经存在！" << endl;
+    }
+    else if (strcmp(buf, "Yes") == 0)
+    {
+        cout << "创建成功！" << endl;
+    }
+}
+
+void clnt::dissolvegroup() // 23解散群
+{
+    json jn;
+    string groupid;
+    cout << "请输入你要解散的群号，请不要超过20个字符，也不要包含空格" << endl;
+    while (!(cin >> groupid) || groupid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+    pChat.setFriendUid(groupid);    //设置群号
+    pChat.To_Json(jn, pChat);
+
+    flag = htonl(flag); //发送要进行的操作
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    char buf[50];
+    //从服务器读，看是否解散群成功
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+
+    if (strcmp(buf, "No group") == 0)
+    {
+        cout << "解散失败，没有该群" << endl;
+    }
+    else if (strcmp(buf, "you are not a member of this group") == 0)
+    {
+        cout << "你不是该群成员" << endl;
+    }
+    else if (strcmp(buf, "not the group owner") == 0)
+    {
+        cout << "你不是该群群主" << endl;
+    }
+    else if (strcmp(buf, "Yes") == 0)
+    {
+        cout << "解散成功" << endl;
+    }
+}
+
+// 24加入群
+void clnt::joingroup()
+{
+    json jn;
+    string groupid;
+    cout << "请输入你要加入的群号，请不要超过20个字符，也不要包含空格" << endl;
+    while (!(cin >> groupid) || groupid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+    pChat.setFriendUid(groupid);    //设置群号
+    pChat.To_Json(jn, pChat);
+
+    flag = htonl(flag); //发送要进行的操作
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    char buf[50];
+    //从服务器读，看是否解散群成功
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+
+    if (strcmp(buf, "No group") == 0)
+    {
+        cout << "加入失败，没有该群" << endl;
+    }
+    else if (strcmp(buf, "Yes") == 0)
+    {
+        cout << "加入成功" << endl;
+    }
 }
 
 //向服务器发送100，然后读取信息

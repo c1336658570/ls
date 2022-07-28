@@ -262,25 +262,25 @@ class onlineUser //用来保存好友信息，好友uid，加好友权限
 public:
     void From_Json(const json &jn, onlineUser &u)
     {
-        jn["friendUid"].get_to(u.friendUid);
+        jn["uid"].get_to(u.uid);
         jn["sock"].get_to(u.sock);
         jn["flag"].get_to(u.flag);
     }
     void To_Json(json &jn, const onlineUser &u)
     {
         jn = json{
-            {"friendUid", u.friendUid},
+            {"uid", u.uid},
             {"sock", u.sock},
             {"flag", u.flag}};
     }
 
-    void setfriendUid(const string &f)
+    void setUid(const string &f)
     {
-        friendUid = f;
+        uid = f;
     }
-    string getfriendUid()
+    string getUid()
     {
-        return friendUid;
+        return uid;
     }
     void setsock(const int &s)
     {
@@ -300,12 +300,12 @@ public:
     }
 
 private:
-    string friendUid; // 在线用户的Uid
-    int sock;         // 套间字
-    int flag;         //有没有在聊天
+    string uid; // 在线用户的Uid
+    int sock;   // 套间字
+    int flag;   //有没有在聊天
 };
 
-//群聊信息类
+//群聊用户信息类
 class groups
 {
 public:
@@ -322,11 +322,35 @@ public:
             {"user_number", g.user_number},
             {"flag", g.flag}};
     }
+    void setgroup_number(const string &g)
+    {
+        group_number = g;
+    }
+    string getgroup_number()
+    {
+        return group_number;
+    }
+    void setuser_number(const string &u)
+    {
+        user_number = u;
+    }
+    string getuser_number()
+    {
+        return user_number;
+    }
+    void setflag(const int &f)
+    {
+        flag = f;
+    }
+    int getflag()
+    {
+        return flag;
+    }
 
 private:
     string group_number; //群id
     string user_number;  //用户id
-    int flag;            //用户权限
+    int flag;            //用户权限0普通用户，1管理员，2群主
 };
 //群通过哈希实现，一个哈希集合，哈希名为群id，里面保存用户uid和用户权限。加入群时需要给每个管理员发送消息。
 

@@ -118,6 +118,12 @@ public:
         redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
         return r;
     }
+    static redisReply *exists(redisContext *c, const string &key)
+    {
+        string cmd = "exists " + key;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
 };
 
 #endif

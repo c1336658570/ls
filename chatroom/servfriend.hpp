@@ -48,7 +48,7 @@ void qqqqquit(int clnt_sock) //将其从在线用户中删除
             if (onlineU.getsock() == clnt_sock) //将value中的套间字和clnt_sock比较，相同就删除该用户
             {
                 freeReplyObject(r);
-                r = Redis::hashdel(c, "Onlineuser", onlineU.getfriendUid());
+                r = Redis::hashdel(c, "Onlineuser", onlineU.getUid());
                 if (r == NULL)
                 {
                     printf("Execut getValue failure\n");
@@ -91,6 +91,9 @@ public:
     void talkwithfriends();      // 18和朋友聊天
     void send_file();            // 19从客户端读文件
     void recv_file();            // 20向客户端发文件
+    void creategroup();          // 22创建群
+    void dissolvegroup();        // 23 解散群
+    void joingroup();            // 24加入群
 
 private:
     pthread_mutex_t mutex;
@@ -114,49 +117,47 @@ void startpchat(void *arg)
     pthread_mutex_unlock(&(((gay *)arg)->getMutex()));
 
     cout << g.getpChat().getFlag() << endl;
-    if (g.getpChat().getFlag() == SIGNOUT) // 9退出登录
+    switch (g.getpChat().getFlag())
     {
-        g.signout();
-    }
-    else if ((g.getpChat().getFlag() == ADDFRIEND)) // 10添加好友
-    {
-        g.addFriend();
-    }
-    else if (g.getpChat().getFlag() == INQUIREADD) // 11查看好友添加信息
-    {
+    case SIGNOUT:
+        g.signout(); // 9退出登录
+        break;
+    case ADDFRIEND:
+        g.addFriend(); // 10添加好友
+        break;
+    case INQUIREADD: // 11查看好友添加信息
         g.inquqireAdd();
-    }
-    else if ((g.getpChat().getFlag() == DELFRIEND)) // 12删除好友
-    {
+        break;
+    case DELFRIEND: // 12删除好友
         g.delFriend();
-    }
-    else if ((g.getpChat().getFlag() == FINDFRIEND)) // 13查询好友
-    {
+        break;
+    case FINDFRIEND: // 13查询好友
         g.findFriend();
-    }
-    else if ((g.getpChat().getFlag() == ONLINESTATUS)) // 14显示好友在线状态
-    {
+        break;
+    case ONLINESTATUS: // 14显示好友在线状态
         g.onlineStatus();
-    }
-    else if ((g.getpChat().getFlag() == BLOCKFRIEND)) // 15屏蔽好友消息
-    {
+        break;
+    case BLOCKFRIEND: // 15屏蔽好友消息
         g.blockFriend();
-    }
-    else if ((g.getpChat().getFlag() == HISTORY_MESSAGE)) // 17查看历史聊天记录
-    {
+        break;
+    case HISTORY_MESSAGE: // 17查看历史聊天记录
         g.history_message();
-    }
-    else if (g.getpChat().getFlag() == CHAT_SEND_FRIEND) // 18和好友聊天
-    {
+        break;
+    case CHAT_SEND_FRIEND: // 18和好友聊天
         g.talkwithfriends();
-    }
-    else if ((g.getpChat().getFlag() == SEND_FILE)) // 19接收客户端的文件
-    {
+        break;
+    case SEND_FILE: // 19接收客户端的文件
         g.send_file();
-    }
-    else if ((g.getpChat().getFlag() == RECV_FILE)) // 20向客户端发文件
-    {
+        break;
+    case RECV_FILE: // 20向客户端发文件
         g.recv_file();
+        break;
+    case CREATEGROUP: // 22创建群
+        g.creategroup();
+        break;
+    case DISSOLVEGROUP: // 23 解散群
+        g.dissolvegroup();
+        break;
     }
 }
 
@@ -676,7 +677,7 @@ void gay::talkwithfriends()
             onlineU2.setflag(18);
             onlineU2.To_Json(jn4, onlineU2); //将jn修改
             freeReplyObject(r);
-            r = Redis::hsetValue(c, "Onlineuser", onlineU2.getfriendUid(), jn4.dump()); //将自己修改后的状态写入数据库
+            r = Redis::hsetValue(c, "Onlineuser", onlineU2.getUid(), jn4.dump()); //将自己修改后的状态写入数据库
             freeReplyObject(r);
         }
 
@@ -789,7 +790,7 @@ void gay::talkwithfriends()
     onlineU2.setflag(0);
     onlineU2.To_Json(jn, onlineU2); //将jn修改
     freeReplyObject(r);
-    r = Redis::hsetValue(c, "Onlineuser", onlineU2.getfriendUid(), jn.dump()); //将自己修改后的状态写入数据库
+    r = Redis::hsetValue(c, "Onlineuser", onlineU2.getUid(), jn.dump()); //将自己修改后的状态写入数据库
     freeReplyObject(r);
     redisFree(c);
 
@@ -1028,6 +1029,165 @@ void gay::recv_file()
     {
         ssock::perr_exit("epoll_ctr error");
     }
+}
+
+// 22创建群
+void gay::creategroup()
+{
+    privateChat pChat2;
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd(); //获取服务器套间字
+    char buf[BUFSIZ];
+    int ret;
+    json jn, jn2;
+    groups grps;
+
+    ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    jn = json::parse(buf);
+    pChat2.From_Json(jn, pChat2);
+
+    grps.setgroup_number(pChat2.getFriendUid()); //设置群号
+    grps.setuser_number(pChat2.getNumber());     //设置群成员id
+    grps.setflag(2);                             //设置权限2，群主
+    grps.To_Json(jn2, grps);
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r;
+    do
+    {
+        r = Redis::exists(c, pChat2.getFriendUid() + "group"); //判断一个key是否已经存在，即判断群是否已经存在
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            break;
+        }
+        if (r->integer == 0)
+        {
+            printf("该群号数据库中没有\n");
+            freeReplyObject(r);
+            r = Redis::hsetValue(c, pChat2.getFriendUid() + "group", pChat2.getNumber(), jn2.dump()); //添加群信息
+            freeReplyObject(r);
+            r = Redis::hsetValue(c, pChat2.getNumber() + "groups", pChat2.getFriendUid(), jn2.dump()); //将群添加到自己已经加入的群哈希中
+            ssock::SendMsg(clnt_sock, "Yes", 4);
+        }
+        else
+        {
+            printf("该群已经存在\n");
+            freeReplyObject(r);
+            ssock::SendMsg(clnt_sock, "No", 3);
+        }
+    } while (0);
+    redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+}
+
+// 23解散群
+void gay::dissolvegroup()
+{
+    privateChat pChat2;
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd(); //获取服务器套间字
+    char buf[BUFSIZ];
+    int ret;
+    json jn, jn2, jn3;
+    groups grps;
+
+    ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    jn = json::parse(buf);
+    pChat2.From_Json(jn, pChat2);
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r, *r2;
+    do
+    {
+        r = Redis::exists(c, pChat2.getFriendUid() + "group"); //判断一个key是否已经存在，即判断群是否已经存在
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            break;
+        }
+        if (r->integer == 0)
+        {
+            printf("该群号数据库中没有\n");
+            freeReplyObject(r);
+            ssock::SendMsg(clnt_sock, "No group", strlen("No group") + 1);
+            break;
+        }
+        else
+        {
+            freeReplyObject(r);
+            cout << pChat2.getFriendUid() << endl
+                 << pChat2.getNumber() << endl;
+            r = Redis::hgethash(c, pChat2.getFriendUid() + "group", pChat2.getNumber());
+            if (r == NULL)
+            {
+                printf("Execut getValue failure\n");
+                break;
+            }
+            if (r->str == NULL)
+            {
+                printf("你不是该群成员\n");
+                freeReplyObject(r);
+                //你不是该群成员
+                ssock::SendMsg(clnt_sock, "you are not a member of this group", strlen("you are not a member of this group") + 1);
+                break;
+            }
+            else
+            {
+                jn3 = json::parse(r->str);
+                grps.From_Json(jn3, grps);
+                freeReplyObject(r);
+                if (grps.getflag() != 2)
+                {
+                    cout << "你不是该群群主" << endl;
+                    ssock::SendMsg(clnt_sock, "not the group owner", strlen("not the group owner") + 1);
+                    break;
+                }
+                else
+                {
+                    cout << "解散成功！" << endl;
+                    ssock::SendMsg(clnt_sock, "Yes", strlen("Yes") + 1);
+                    r = Redis::hgethashall(c, pChat2.getFriendUid() + "group");
+                    string groups = "groups";
+                    for (int i = 0; i < r->elements; ++i) //遍历所有用户，将该群从所有用户保存自己加入的群的数据库中移除
+                    {
+                        if (i % 2 == 0) //偶数是key，奇数是value
+                        {
+                            //将该群信息从用户保存群信息的数据库移除
+                            r2 = Redis::hashdel(c, r->element[i]->str + groups, pChat2.getFriendUid());
+                            freeReplyObject(r2);
+                            //将该用户从群中删除
+                            r2 = Redis::hashdel(c, pChat2.getFriendUid() + "group", r->element[i]->str);
+                            freeReplyObject(r2);
+                        }
+                    }
+                }
+            }
+        }
+    } while (0);
+    redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+}
+
+// 24加入群
+void gay::joingroup()
+{
 }
 
 // 100一直发消息的线程
