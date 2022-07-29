@@ -3,7 +3,6 @@
 
 int main(int argc, char *argv[])
 {
-    c = Redis::RedisConnect("127.0.0.1", 6379);
     ThreadPool pool(10);
 
     account s;

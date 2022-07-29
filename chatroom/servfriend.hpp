@@ -26,7 +26,6 @@ using namespace std;
 
 unsigned long long htonll(unsigned long long val); //主机序转网络序
 unsigned long long ntohll(unsigned long long val); //网络序转主机序
-redisContext *c;
 
 void qqqqquit(int clnt_sock) //将其从在线用户中删除
 {
