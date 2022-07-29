@@ -19,6 +19,7 @@ void *pthread_send_file(void *arg);                //专门发文件的线程
 unsigned long long htonll(unsigned long long val); //主机序转网络序
 unsigned long long ntohll(unsigned long long val); //网络序转主机序
 void *pthread_recv_file(void *arg);                //收文件的线程
+void *chat_recv_group(void *arg);                  //聊天中接受群消息的线程
 
 char **argv;
 
@@ -1833,9 +1834,143 @@ void clnt::show_Menu6()
 
 void clnt::history_groupmessage() // 33查看群历史消息记录
 {
+    int ret;
+    string number;
+    json jn;
+    char buf[BUFSIZ];
+    privateChat pChat2;
+
+    cout << "请输入你要查看的群id，不要超过20个字符" << endl;
+    while (!(cin >> number) || number.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误或账号过长，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setFriendUid(number);     //设置要查看的历史聊天记录的对方uid
+
+    pChat.To_Json(jn, pChat);
+
+    flag = htonl(flag);
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, (void *)jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    while (1)
+    {
+        ret = ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+        if (ret == 0)
+        {
+            continue;
+        }
+        if (strcmp(buf, "finish") == 0)
+        {
+            break;
+        }
+        jn = json::parse(buf);
+        pChat2.From_Json(jn, pChat2);
+        cout << pChat2.getTimeNow()
+             << pChat2.getNumber() << "："
+             << pChat2.getMessage() << endl;
+    }
 }
 void clnt::chat_send_group() // 34给群发消息
 {
+    pthread_t tid;
+    json jn;
+    string message;
+    string groupUid;
+
+    cout << "请输入你要发送消息的群id，不要超过20个字符，也不要含有空格" << endl;
+    while (!(cin >> groupUid) || groupUid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    pChat.setFriendUid(groupUid);                                //设置群的id
+    pChat.setNumber(u.getNumber());                              //设置自己的uid
+    pChat.setName(u.getName());                                  //设置自己的姓名
+    pChat.setServ_fd(clnt_fd);                                   //设置自己套间字，为了传给接受消息的线程，让接收消息的线程使用
+    pthread_create(&tid, NULL, chat_recv_group, (void *)&pChat); //创建一个接受消息的线程
+    pthread_detach(tid);                                         //设置线程分离
+    cout << "输入exit退出" << endl;
+
+    flag = htonl(flag);
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag)); //向服务器发送要执行的操作
+
+    while (1)
+    {
+        cin >> message;
+        if (cin.eof())
+        {
+            cout << "读到文件结尾，函数返回" << endl;
+            break;
+        }
+
+        pChat.setTimeNow(); //设置时间
+        pChat.setMessage(message);
+
+        pChat.To_Json(jn, pChat); //将类转为序列
+
+        ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将序列发给服务器
+        if (strcmp(message.c_str(), "exit") == 0)
+            break;
+    }
+}
+
+void *chat_recv_group(void *arg) //聊天中接受群消息的线程
+{
+    privateChat pChat2;
+    json jn;
+    privateChat pChat = *((privateChat *)arg);
+
+    char buf[BUFSIZ];
+    int clnt_fd = pChat.getServ_fd();
+    string number = pChat.getFriendUid(); //确保消息是我要聊天的群发送过来的，如果不是我要聊天的群发送过来的，就将其添加到聊天的历史记录里面
+    int ret;
+    while (1)
+    {
+        ret = ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+        if (ret == 0)
+        {
+            continue;
+        }
+        if (strcmp(buf, "No group") == 0)
+        {
+            continue;
+        }
+        else if (strcmp(buf, "you are not a member of this group") == 0)
+        {
+            continue;
+        }
+        jn = json::parse(buf);
+        pChat2.From_Json(jn, pChat2);
+        if (strcmp(pChat2.getMessage().c_str(), "exit") == 0)
+        {
+            break;
+        }
+        if (number == pChat2.getFriendUid())
+            cout << pChat2.getTimeNow()
+                 << pChat2.getNumber() << endl
+                 << pChat2.getMessage() << endl;
+    }
+
+    return NULL;
 }
 void clnt::send_file_group() // 35给群发文件
 {
@@ -1908,14 +2043,28 @@ void *continue_receive(void *arg)
                  << "，你收到了" << pChat2.getNumber() << "的加群申请" << endl;
             continue;
         }
-        if (pChat.getFlag() == CHAT_SEND_FRIEND)
+        if (pChat2.getFlag() == CHAT_SEND_FRIEND)
         {
-            if (pChat2.getNumber() == pChat.getFriendUid())
+            if (pChat.getFlag() == CHAT_SEND_FRIEND)
             {
-                continue;
+                if (pChat2.getNumber() == pChat.getFriendUid())
+                {
+                    continue;
+                }
             }
+            cout << "你收到了来自" << pChat2.getNumber() << "的一条消息，请在历史记录中查看" << endl;
         }
-        cout << "你收到了来自" << pChat2.getNumber() << "的一条消息，请在历史记录中查看" << endl;
+        if (pChat2.getFlag() == CHAT_SEND_GROUP)
+        {
+            if (pChat.getFlag() == CHAT_SEND_GROUP)
+            {
+                if (pChat2.getFriendUid() == pChat.getFriendUid())
+                {
+                    continue;
+                }
+            }
+            cout << "你收到了来自群" << pChat2.getFriendUid() << "的一条消息，请在历史记录中查看" << endl;
+        }
     }
 }
 

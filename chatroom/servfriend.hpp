@@ -707,7 +707,6 @@ void gay::talkwithfriends()
     int flag = 0; //定义一个标记，在第一次进入循环时改变自己的状态
     struct epoll_event ep;
     int clnt_sock = pChat.getServ_fd();
-    privateChat pChat2;
     char buf[BUFSIZ];
     json jn, jn2, jn3, jn4;
     onlineUser onlineU, onlineU2;
@@ -2005,9 +2004,199 @@ void gay::kickpeople()
 
 void gay::history_groupmessage() // 33查看群历史消息记录
 {
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd();
+    char buf[BUFSIZ];
+    json jn;
+
+    ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    jn = json::parse(buf);
+    pChat.From_Json(jn, pChat);  //会修改pChat中本来的套间字的值
+    pChat.setServ_fd(clnt_sock); //将套间字的值修改回去
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r = Redis::listlrange(c, pChat.getNumber() + "grouphistory" + pChat.getFriendUid(), "0", "-1");
+    if (r == NULL)
+    {
+        printf("Execut getValue failure\n");
+        redisFree(c);
+    }
+    for (int i = 0; i < r->elements; ++i) //遍历消息记录
+    {
+        cout << r->element[i]->str << endl;
+        cout << strlen(r->element[i]->str) + 1;
+        ssock::SendMsg(clnt_sock, r->element[i]->str, strlen(r->element[i]->str) + 1);
+    }
+    ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    int ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
 }
 void gay::chat_send_group() // 34给群发消息
 {
+    int flag = 0; //定义一个标记，在第一次进入循环时改变自己的状态
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd();
+    char buf[BUFSIZ];
+    json jn, jn2, jn3;
+    onlineUser onlineU, onlineU2;
+
+    redisContext *c;
+    redisReply *r, *r2;
+    c = Redis::RedisConnect("127.0.0.1", 6379);
+    string message = "message";
+    string grouphistory = "grouphistory";
+
+    while (1)
+    {
+        int ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+        if (ret == 0)
+        {
+            qqqqquit(clnt_sock); //下线
+            return;
+        }
+
+        cout << buf << endl;
+        jn = json::parse(buf);
+        pChat.From_Json(jn, pChat);  //将序列转为类，会修改原有的套间字
+        pChat.setServ_fd(clnt_sock); //将套间字修改回去
+        if (flag == 0)
+        {
+            r = Redis::hgethash(c, "Onlineuser", pChat.getNumber());
+            jn2 = json::parse(r->str);
+            onlineU.From_Json(jn2, onlineU); //将自己的状态改为聊天
+            onlineU.setflag(CHAT_SEND_GROUP);
+            onlineU.To_Json(jn2, onlineU); //将jn修改
+            freeReplyObject(r);
+            r = Redis::hsetValue(c, "Onlineuser", onlineU.getUid(), jn2.dump()); //将自己修改后的状态写入数据库
+            freeReplyObject(r);
+        }
+
+        if (strcmp(pChat.getMessage().c_str(), "exit") == 0) //如果发送exit，就退出私聊，然后给自己发exit让自己的接受消息的线程退出
+        {
+            ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给自己
+            //将消息写入自己的列表里。意味着自己关闭，continue_receive线程需要开始工作了
+            r = Redis::listrpush(c, pChat.getNumber() + "message", jn.dump().c_str());
+            freeReplyObject(r);
+            break;
+        }
+
+        r = Redis::exists(c, pChat.getFriendUid() + "group"); //判断一个key是否已经存在，即判断群是否已经存在
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            break;
+        }
+        if (r->integer == 0)
+        {
+            printf("该群号数据库中没有\n");
+            freeReplyObject(r);
+            ssock::SendMsg(clnt_sock, "No group", strlen("No group") + 1);
+            continue;
+        }
+        else
+        {
+            freeReplyObject(r);
+
+            r = Redis::hgethash(c, pChat.getFriendUid() + "group", pChat.getNumber());
+            if (r == NULL)
+            {
+                printf("Execut getValue failure\n");
+                break;
+            }
+            if (r->str == NULL) //判断该用户是否是群成员
+            {
+                printf("你不是该群成员\n");
+                freeReplyObject(r);
+                //你不是该群成员
+                ssock::SendMsg(clnt_sock, "you are not a member of this group", strlen("you are not a member of this group") + 1);
+                continue;
+            }
+            else
+            {
+                freeReplyObject(r);
+                r = Redis::hgethashall(c, pChat.getFriendUid() + "group");
+                if (r == NULL)
+                {
+                    printf("Execut getValue failure\n");
+                    break;
+                }
+                for (int i = 0; i < r->elements; ++i) //遍历群成员
+                {
+                    if (i % 2 == 0) //偶数是key，奇数是value
+                    {
+                        if (strcmp(r->element[i]->str, pChat.getNumber().c_str()) == 0)
+                        {
+                            //将聊天记录添加到自己的历史记录里
+                            r2 = Redis::listrpush(c, r->element[i]->str + grouphistory + pChat.getFriendUid(), jn.dump().c_str());
+                            freeReplyObject(r2);
+                            continue;
+                        }
+                        r2 = Redis::hgethash(c, "Onlineuser", r->element[i]->str); //获取群用户的在线信息
+                        if (r2 == NULL)
+                        {
+                            printf("Execut getValue failure\n");
+                            break;
+                        }
+                        if (r2->str == NULL) //该用户不在线，将聊天记录添加到历史记录中
+                        {
+                            printf("该用户不在线\n");
+                            freeReplyObject(r2);
+                            r2 = Redis::listrpush(c, r->element[i]->str + message, jn.dump().c_str());
+                            freeReplyObject(r2);
+
+                            //将聊天记录添加到历史记录里
+                            r2 = Redis::listrpush(c, r->element[i]->str + grouphistory + pChat.getFriendUid(), jn.dump().c_str());
+                            freeReplyObject(r2);
+                        }
+                        else
+                        {
+                            jn3 = json::parse(r2->str);
+                            onlineU2.From_Json(jn3, onlineU2);
+                            freeReplyObject(r2);
+                            if (onlineU2.getflag() == CHAT_SEND_GROUP) //对方也正在群聊
+                            {
+                                ret = ssock::SendMsg(onlineU2.getsock(), jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给好友
+                            }
+                            //将消息写入一个列表里，然后在客户端从该列表中读取数据
+                            r2 = Redis::listrpush(c, r->element[i]->str + message, jn.dump().c_str());
+                            freeReplyObject(r2);
+                            //将聊天记录添加到历史记录里
+                            r2 = Redis::listrpush(c, r->element[i]->str + grouphistory + pChat.getFriendUid(), jn.dump().c_str());
+                            freeReplyObject(r2);
+                        }
+                    }
+                }
+                freeReplyObject(r);
+            }
+        }
+    }
+
+    r = Redis::hgethash(c, "Onlineuser", pChat.getNumber());
+    cout << "r->str = " << r->str;
+    jn2 = json::parse(r->str);
+    onlineU.From_Json(jn2, onlineU); //将自己的状态改为不聊天
+    onlineU.setflag(0);
+    onlineU.To_Json(jn2, onlineU); //将jn修改
+    freeReplyObject(r);
+    r = Redis::hsetValue(c, "Onlineuser", onlineU.getUid(), jn2.dump()); //将自己修改后的状态写入数据库
+    freeReplyObject(r);
+    redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    int ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
 }
 void gay::send_file_group() // 35给群发文件
 {
