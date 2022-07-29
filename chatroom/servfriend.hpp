@@ -378,6 +378,11 @@ void gay::inquqireAdd()
         }
         freeReplyObject(r);
         ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+        if (ret == 0)
+        {
+            qqqqquit(clnt_sock);
+            return;
+        }
         if (strcmp(buf, "Yes") == 0)
         {
             cout << "成功添加" << endl;
@@ -670,6 +675,7 @@ void gay::history_message()
     int clnt_sock = pChat.getServ_fd();
     char buf[BUFSIZ];
     json jn;
+    int ret;
 
     ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
     jn = json::parse(buf);
@@ -687,14 +693,24 @@ void gay::history_message()
     {
         cout << r->element[i]->str << endl;
         cout << strlen(r->element[i]->str) + 1;
-        ssock::SendMsg(clnt_sock, r->element[i]->str, strlen(r->element[i]->str) + 1);
+        ret = ssock::SendMsg(clnt_sock, r->element[i]->str, strlen(r->element[i]->str) + 1);
+        if (ret == -1)
+        {
+            qqqqquit(clnt_sock);
+            return;
+        }
     }
     ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+    if (ret == -1)
+    {
+        qqqqquit(clnt_sock);
+        return;
+    }
 
     //执行完添加后将文件描述符挂上监听红黑树
     ep.events = EPOLLIN | EPOLLET;
     ep.data.fd = clnt_sock;
-    int ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
     if (ret == -1)
     {
         ssock::perr_exit("epoll_ctr error");
@@ -744,7 +760,12 @@ void gay::talkwithfriends()
 
         if (strcmp(pChat.getMessage().c_str(), "exit") == 0) //如果发送exit，就退出私聊，然后给自己发exit让自己的接受消息的线程退出
         {
-            ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给自己
+            ret = ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给自己
+            if (ret == -1)
+            {
+                qqqqquit(clnt_sock);
+                return;
+            }
             //将消息写入自己的列表里。意味着自己关闭，continue_receive线程需要开始工作了
             r = Redis::listrpush(c, pChat.getNumber() + "message", jn.dump().c_str());
             freeReplyObject(r);
@@ -762,7 +783,12 @@ void gay::talkwithfriends()
         if (r->integer == 0) //没有该好友
         {
             cout << "没有该好友" << endl;
-            ssock::SendMsg(clnt_sock, "No friend", strlen("No friend") + 1); //将消息转发给自己
+            ret = ssock::SendMsg(clnt_sock, "No friend", strlen("No friend") + 1); //将消息转发给自己
+            if (ret == -1)
+            {
+                qqqqquit(clnt_sock);
+                return;
+            }
             freeReplyObject(r);
             continue;
         }
@@ -829,6 +855,11 @@ void gay::talkwithfriends()
         if (onlineU.getflag() == 18)
         {
             ret = ssock::SendMsg(onlineU.getsock(), jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给好友
+            if (ret == -1)
+            {
+                qqqqquit(clnt_sock);
+                return;
+            }
         }
 
         freeReplyObject(r);
@@ -953,7 +984,13 @@ void gay::send_file()
         int n;
         //将文件存入本地
         __off_t size;
-        ssock::ReadMsg(clnt_sock, &size, sizeof(size));
+        ret = ssock::ReadMsg(clnt_sock, &size, sizeof(size));
+        if (ret == 0)
+        {
+            qqqqquit(clnt_sock);
+            return;
+        }
+
         size = ntohll(size);
         cout << "size = " << size << endl;
         while (size > 0)
@@ -969,6 +1006,11 @@ void gay::send_file()
             if (n < 0)
             {
                 continue;
+            }
+            if (n == 0)
+            {
+                qqqqquit(clnt_sock);
+                return;
             }
             size -= n;
             fwrite(buf, n, 1, fp);
@@ -1038,11 +1080,21 @@ void gay::recv_file()
         if (ret == -1)
         {
             qqqqquit(clnt_sock);
+            return;
+        }
+        if (ret == -1)
+        {
+            qqqqquit(clnt_sock);
             freeReplyObject(r);
             return;
         }
         freeReplyObject(r);
         ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+        if (ret == 0)
+        {
+            qqqqquit(clnt_sock);
+            return;
+        }
         if (strcmp(buf, "Yes") == 0)
         {
             cout << "同意接收" << endl;
@@ -1060,10 +1112,20 @@ void gay::recv_file()
             size = htonll(size);
 
             ssock::SendMsg(clnt_sock, (void *)&size, sizeof(size));
+            if (ret == -1)
+            {
+                qqqqquit(clnt_sock);
+                return;
+            }
             cout << "file_stat.st_size = " << file_stat.st_size << endl;
             while ((ret = sendfile(clnt_sock, filefd, NULL, file_stat.st_size)) != 0)
             {
                 cout << "ret = " << ret << endl;
+                if (ret == -1 && errno == EPIPE)
+                {
+                    qqqqquit(clnt_sock);
+                    return;
+                }
             }
             cout << "ret = " << ret << endl;
 
@@ -1467,10 +1529,20 @@ void gay::hasjoingroup()
             if (i % 2 == 1) //偶数是key，奇数是value
             {
                 jn = json::parse(r->element[i]->str);
-                ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+                ret = ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+                if (ret == -1)
+                {
+                    qqqqquit(clnt_sock);
+                    return;
+                }
             }
         }
-        ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+        ret = ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+        if (ret == -1)
+        {
+            qqqqquit(clnt_sock);
+            return;
+        }
 
     } while (0);
     freeReplyObject(r);
@@ -1857,7 +1929,17 @@ void gay::groupapplication()
                         jn = json::parse(r->str);
                         freeReplyObject(r);
                         ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()));
-                        ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+                        if (ret == -1)
+                        {
+                            qqqqquit(clnt_sock);
+                            return;
+                        }
+                        ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+                        if (ret == 0)
+                        {
+                            qqqqquit(clnt_sock);
+                            return;
+                        }
                         if (strcmp(buf, "Yes") == 0)
                         {
                             pChat3.From_Json(jn, pChat3);
@@ -2008,6 +2090,7 @@ void gay::history_groupmessage() // 33查看群历史消息记录
     int clnt_sock = pChat.getServ_fd();
     char buf[BUFSIZ];
     json jn;
+    int ret;
 
     ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
     jn = json::parse(buf);
@@ -2025,14 +2108,24 @@ void gay::history_groupmessage() // 33查看群历史消息记录
     {
         cout << r->element[i]->str << endl;
         cout << strlen(r->element[i]->str) + 1;
-        ssock::SendMsg(clnt_sock, r->element[i]->str, strlen(r->element[i]->str) + 1);
+        ret = ssock::SendMsg(clnt_sock, r->element[i]->str, strlen(r->element[i]->str) + 1);
+        if (ret == -1)
+        {
+            qqqqquit(clnt_sock);
+            return;
+        }
     }
-    ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+    ret = ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+    if (ret == -1)
+    {
+        qqqqquit(clnt_sock);
+        return;
+    }
 
     //执行完添加后将文件描述符挂上监听红黑树
     ep.events = EPOLLIN | EPOLLET;
     ep.data.fd = clnt_sock;
-    int ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
     if (ret == -1)
     {
         ssock::perr_exit("epoll_ctr error");
@@ -2080,7 +2173,12 @@ void gay::chat_send_group() // 34给群发消息
 
         if (strcmp(pChat.getMessage().c_str(), "exit") == 0) //如果发送exit，就退出私聊，然后给自己发exit让自己的接受消息的线程退出
         {
-            ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给自己
+            ret = ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给自己
+            if (ret == -1)
+            {
+                qqqqquit(clnt_sock);
+                return;
+            }
             //将消息写入自己的列表里。意味着自己关闭，continue_receive线程需要开始工作了
             r = Redis::listrpush(c, pChat.getNumber() + "message", jn.dump().c_str());
             freeReplyObject(r);
@@ -2097,7 +2195,12 @@ void gay::chat_send_group() // 34给群发消息
         {
             printf("该群号数据库中没有\n");
             freeReplyObject(r);
-            ssock::SendMsg(clnt_sock, "No group", strlen("No group") + 1);
+            ret = ssock::SendMsg(clnt_sock, "No group", strlen("No group") + 1);
+            if (ret == -1)
+            {
+                qqqqquit(clnt_sock);
+                return;
+            }
             continue;
         }
         else
@@ -2115,7 +2218,12 @@ void gay::chat_send_group() // 34给群发消息
                 printf("你不是该群成员\n");
                 freeReplyObject(r);
                 //你不是该群成员
-                ssock::SendMsg(clnt_sock, "you are not a member of this group", strlen("you are not a member of this group") + 1);
+                ret = ssock::SendMsg(clnt_sock, "you are not a member of this group", strlen("you are not a member of this group") + 1);
+                if (ret == -1)
+                {
+                    qqqqquit(clnt_sock);
+                    return;
+                }
                 continue;
             }
             else
@@ -2163,6 +2271,11 @@ void gay::chat_send_group() // 34给群发消息
                             if (onlineU2.getflag() == CHAT_SEND_GROUP) //对方也正在群聊
                             {
                                 ret = ssock::SendMsg(onlineU2.getsock(), jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将消息转发给好友
+                                if (ret == -1)
+                                {
+                                    qqqqquit(clnt_sock);
+                                    return;
+                                }
                             }
                             //将消息写入一个列表里，然后在客户端从该列表中读取数据
                             r2 = Redis::listrpush(c, r->element[i]->str + message, jn.dump().c_str());
@@ -2198,11 +2311,271 @@ void gay::chat_send_group() // 34给群发消息
         ssock::perr_exit("epoll_ctr error");
     }
 }
-void gay::send_file_group() // 35给群发文件
+void gay::send_file_group() // 35从客户端读文件
 {
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd();
+    char buf[BUFSIZ];
+    json jn, jn2, jn3;
+
+    friends fri, fri2;
+    redisContext *c;
+    redisReply *r, *r2;
+    string message = "message";
+    string file = "file";
+
+    int ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    cout << "ret = " << ret << endl;
+    if (ret == 0)
+    {
+        qqqqquit(clnt_sock); //下线
+        return;
+    }
+
+    cout << buf << endl;
+    jn = json::parse(buf);
+    pChat.From_Json(jn, pChat);  //将序列转为类，会修改原有的套间字
+    pChat.setServ_fd(clnt_sock); //将套间字修改回去
+
+    do
+    {
+        c = Redis::RedisConnect("127.0.0.1", 6379);
+
+        r = Redis::exists(c, pChat.getFriendUid() + "group"); //判断一个key是否已经存在，即判断群是否已经存在
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            break;
+        }
+        if (r->integer == 0)
+        {
+            printf("该群号数据库中没有\n");
+            freeReplyObject(r);
+            ret = ssock::SendMsg(clnt_sock, "No group", strlen("No group") + 1);
+            if (ret == -1)
+            {
+                qqqqquit(clnt_sock);
+                return;
+            }
+            break;
+        }
+        else
+        {
+            freeReplyObject(r);
+
+            r = Redis::hgethash(c, pChat.getFriendUid() + "group", pChat.getNumber());
+            if (r == NULL)
+            {
+                printf("Execut getValue failure\n");
+                break;
+            }
+            if (r->str == NULL) //判断该用户是否是群成员
+            {
+                printf("你不是该群成员\n");
+                freeReplyObject(r);
+                //你不是该群成员
+                ssock::SendMsg(clnt_sock, "you are not a member of this group", strlen("you are not a member of this group") + 1);
+                break;
+            }
+            else
+            {
+                ssock::SendMsg(clnt_sock, "Yes", strlen("Yes") + 1);
+
+                string filename(pChat.getMessage()); //文件名
+                auto f = filename.rfind('/');
+                filename.erase(0, f + 1);
+                filename.insert(0, "../Temporaryfiles/");
+                DIR *d = opendir("../Temporaryfiles");
+                if (d == NULL)
+                {
+                    mkdir("../Temporaryfiles", 0777);
+                }
+                FILE *fp = fopen(filename.c_str(), "w");
+
+                int n;
+                //将文件存入本地
+                __off_t size;
+                ret = ssock::ReadMsg(clnt_sock, &size, sizeof(size));
+                if (ret == 0)
+                {
+                    qqqqquit(clnt_sock);
+                    return;
+                }
+                size = ntohll(size);
+                cout << "size = " << size << endl;
+                while (size > 0)
+                {
+                    if (sizeof(buf) < size)
+                    {
+                        n = ssock::Readn(clnt_sock, buf, sizeof(buf));
+                    }
+                    else
+                    {
+                        n = ssock::Readn(clnt_sock, buf, size);
+                    }
+                    if (n < 0)
+                    {
+                        continue;
+                    }
+                    if (n == 0)
+                    {
+                        qqqqquit(clnt_sock);
+                        return;
+                    }
+                    size -= n;
+                    fwrite(buf, n, 1, fp);
+                    cout << "size = " << size << endl;
+                }
+
+                fclose(fp);
+
+                r = Redis::hgethashall(c, pChat.getFriendUid() + "group");
+                if (r == NULL)
+                {
+                    printf("Execut getValue failure\n");
+                    break;
+                }
+                for (int i = 0; i < r->elements; ++i) //遍历群成员
+                {
+                    if (i % 2 == 0) //偶数是key，奇数是value
+                    {
+                        if (strcmp(r->element[i]->str, pChat.getNumber().c_str()) == 0)
+                        {
+                            continue;
+                        }
+
+                        //将消息写入一个列表里，然后在客户端从该列表中读取数据，提醒客户端有数据来了
+                        r2 = Redis::listrpush(c, r->element[i]->str + message, jn.dump().c_str());
+                        freeReplyObject(r2);
+
+                        //将消息写到一个列表里（包括其中的文件名），让客户端可以知道自己要哪个文件
+                        r2 = Redis::listrpush(c, r->element[i]->str + file, jn.dump().c_str());
+                        freeReplyObject(r2);
+                    }
+                }
+            }
+        }
+    } while (0);
+    redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
 }
-void gay::recv_file_group() // 36接收群文件
+void gay::recv_file_group() // 36给群成员发文件
 {
+    privateChat pChat2;
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd();
+    char buf[BUFSIZ];
+    json jn, jn2;
+    int ret;
+
+    ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    if (ret == 0)
+    {
+        qqqqquit(clnt_sock);
+        cout << "clnt_sock"
+             << "关闭" << endl;
+        return;
+    }
+    jn = json::parse(buf);
+    pChat.From_Json(jn, pChat);  //将序列转为类，会修改原有的套间字
+    pChat.setServ_fd(clnt_sock); //将套间字修改回去
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r = Redis::listlen(c, pChat.getNumber() + "file");
+    if (r == NULL)
+    {
+        printf("Execut getValue failure\n");
+        redisFree(c);
+    }
+    int listlen = r->integer;
+    freeReplyObject(r);
+
+    for (int i = 0; i < listlen; ++i)
+    {
+        r = Redis::listlpop(c, pChat.getNumber() + "file");
+        cout << r->str << endl;
+        jn2 = json::parse(r->str);
+        pChat2.From_Json(jn2, pChat2); //将会修改pChat中本来的文件描述符
+        ret = ssock::SendMsg(clnt_sock, r->str, strlen(r->str) + 1);
+        if (ret == -1)
+        {
+            qqqqquit(clnt_sock);
+            freeReplyObject(r);
+            return;
+        }
+        freeReplyObject(r);
+        ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+        if (ret == 0)
+        {
+            qqqqquit(clnt_sock);
+            return;
+        }
+        if (strcmp(buf, "Yes") == 0)
+        {
+            cout << "同意接收" << endl;
+            string filename(pChat2.getMessage()); //文件名
+            auto f = filename.rfind('/');
+            filename.erase(0, f + 1);
+            filename.insert(0, "../Temporaryfiles/");
+            int filefd = open(filename.c_str(), O_RDONLY);
+
+            __off_t size;
+            struct stat file_stat;
+            //为了获取文件大小
+            fstat(filefd, &file_stat);
+            size = file_stat.st_size;
+            size = htonll(size);
+
+            ret = ssock::SendMsg(clnt_sock, (void *)&size, sizeof(size));
+            if (ret == -1)
+            {
+                qqqqquit(clnt_sock);
+                return;
+            }
+            cout << "file_stat.st_size = " << file_stat.st_size << endl;
+            while ((ret = sendfile(clnt_sock, filefd, NULL, file_stat.st_size)) != 0)
+            {
+                cout << "ret = " << ret << endl;
+                if (ret == -1 && errno == EPIPE)
+                {
+                    qqqqquit(clnt_sock);
+                    return;
+                }
+            }
+            cout << "ret = " << ret << endl;
+
+            close(filefd);
+        }
+        else
+        {
+            cout << "拒绝接收" << endl;
+        }
+    }
+    ret = ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+    if (ret == -1)
+    {
+        qqqqquit(clnt_sock);
+        return;
+    }
+
+    redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
 }
 
 // 100一直发消息的线程
