@@ -1831,6 +1831,19 @@ void clnt::show_Menu6()
     }
 }
 
+void clnt::history_groupmessage() // 33查看群历史消息记录
+{
+}
+void clnt::chat_send_group() // 34给群发消息
+{
+}
+void clnt::send_file_group() // 35给群发文件
+{
+}
+void clnt::recv_file_group() // 36接收群文件
+{
+}
+
 //向服务器发送100，然后读取信息
 void *continue_receive(void *arg)
 {

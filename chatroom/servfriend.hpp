@@ -101,6 +101,10 @@ public:
     void kickmanagepeople();     // 29取消管理员
     void groupapplication();     // 30查看群组申请列表，进行同意或拒绝
     void kickpeople();           // 31踢人
+    void history_groupmessage(); // 33查看群历史消息记录
+    void chat_send_group();      // 34给群发消息
+    void send_file_group();      // 35给群发文件
+    void recv_file_group();      // 36接收群文件
 
 private:
     pthread_mutex_t mutex;
@@ -188,6 +192,18 @@ void startpchat(void *arg)
         break;
     case KICKPEOPLE:
         g.kickpeople(); // 31踢人
+        break;
+    case HISTORY_GROUPMESSAGE: // 33查看群历史消息记录
+        g.history_groupmessage();
+        break;
+    case CHAT_SEND_GROUP: // 34给群发消息
+        g.chat_send_group();
+        break;
+    case SEND_FILE_GROUP: // 35给群发文件
+        g.send_file_group();
+        break;
+    case RECV_FILE_GROUP: // 36接收群文件
+        g.recv_file_group();
         break;
     }
 }
@@ -1985,6 +2001,19 @@ void gay::kickpeople()
     {
         ssock::perr_exit("epoll_ctr error");
     }
+}
+
+void gay::history_groupmessage() // 33查看群历史消息记录
+{
+}
+void gay::chat_send_group() // 34给群发消息
+{
+}
+void gay::send_file_group() // 35给群发文件
+{
+}
+void gay::recv_file_group() // 36接收群文件
+{
 }
 
 // 100一直发消息的线程
