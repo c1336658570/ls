@@ -59,6 +59,10 @@ public:
     void kickmanagepeople();      // 29取消管理员
     void groupapplication();      // 30查看群组申请列表，进行同意或拒绝
     void kickpeople();            // 31踢人
+    void history_groupmessage();  // 33查看群历史消息记录
+    void chat_send_group();       // 34给群发消息
+    void send_file_group();       // 35给群发文件
+    void recv_file_group();       // 36接收群文件
 
 private:
     uint32_t flag;     //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
@@ -487,7 +491,6 @@ void clnt::addFriend()
         return;
     }
     pChat.setFriendUid(friendUid); //设置好友uid
-    pChat.setTimeNow();            //设置时间
 
     pChat.To_Json(jn, pChat); //将类转为序列
 
@@ -778,10 +781,6 @@ void clnt::show_Menu4()
             break;
         }
     }
-}
-
-void clnt::show_Menu6()
-{
 }
 
 // 17查看历史聊天记录
@@ -1788,6 +1787,50 @@ void clnt::kickpeople()
         cout << "踢人成功" << endl;
     }
 }
+void clnt::show_Menu6()
+{
+    while (1)
+    {
+        flag = 0;
+        cout << "请输入要执行的操作" << endl;
+        cout << "33、查看群历史聊天记录" << endl;
+        cout << "34、给群发消息" << endl;
+        cout << "35、给群发送文件" << endl;
+        cout << "36、接收群文件" << endl;
+        cout << "37、返回上一层" << endl;
+
+        while (!(cin >> flag) || flag < 33 || flag > 37)
+        {
+            if (cin.eof())
+            {
+                cout << "读到文件结束，函数返回" << endl;
+                return;
+            }
+            cout << "输入有误" << endl;
+            cin.clear();
+            cin.ignore(INT32_MAX, '\n');
+        }
+        cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+        pChat.setFlag(flag);
+        if (flag == RETURNON4) // 37返回上一层
+        {
+            break;
+        }
+        switch (flag)
+        {
+        case HISTORY_GROUPMESSAGE: // 33查看群历史消息记录
+            history_groupmessage();
+        case CHAT_SEND_GROUP: // 34给群发消息
+            chat_send_group();
+        case SEND_FILE_GROUP: // 35给群发文件
+            send_file_group();
+        case RECV_FILE_GROUP: // 36接收群文件
+            recv_file_group();
+        }
+    }
+}
+
 //向服务器发送100，然后读取信息
 void *continue_receive(void *arg)
 {

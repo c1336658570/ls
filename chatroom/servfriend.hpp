@@ -281,10 +281,25 @@ void gay::addFriend()
         {
             ssock::SendMsg(clnt_sock, "wait", strlen("wait") + 1);
             freeReplyObject(r);
+            r = Redis::listlrem(c, pChat.getFriendUid() + "addfriend", "1", jn.dump()); //移除数据库中和要添加的数据一样的数据一条
+            if (r == NULL)
+            {
+                printf("Execut getValue failure\n");
+                break;
+            }
+            freeReplyObject(r);
             r = Redis::listrpush(c, pChat.getFriendUid() + "addfriend", jn.dump()); //将添加好友的信息放到数据库等待对方同意
             freeReplyObject(r);
             //将消息放到接收好友请求的用户的数据库中，提醒该用户有人添加它
+            r = Redis::listlrem(c, pChat.getFriendUid() + "message", "1", jn.dump());
+            if (r == NULL)
+            {
+                printf("Execut getValue failure\n");
+                break;
+            }
+            freeReplyObject(r);
             r = Redis::listrpush(c, pChat.getFriendUid() + "message", jn.dump());
+            freeReplyObject(r);
         }
 
     } while (0);
@@ -1279,10 +1294,24 @@ void gay::joingroup()
                         grps.From_Json(jn2, grps);
                         if (grps.getflag() == 1 || grps.getflag() == 2)
                         {
+                            r2 = Redis::listlrem(c, r->element[i]->str + message, "1", jn.dump()); //移除数据库中和要添加的数据一样的数据一条
+                            if (r2 == NULL)
+                            {
+                                printf("Execut getValue failure\n");
+                                break;
+                            }
+                            freeReplyObject(r2);
                             r2 = Redis::listrpush(c, r->element[i]->str + message, jn.dump()); //在提醒列表中加入有成员申请加群信息
                             freeReplyObject(r2);
                         }
                     }
+                }
+                freeReplyObject(r);
+                r = Redis::listlrem(c, pChat2.getFriendUid() + message, "1", jn.dump()); //移除数据库中和要添加的数据一样的数据一条
+                if (r == NULL)
+                {
+                    printf("Execut getValue failure\n");
+                    break;
                 }
                 freeReplyObject(r);
                 r = Redis::listrpush(c, pChat2.getFriendUid() + message, jn.dump());

@@ -118,6 +118,12 @@ public:
         redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
         return r;
     }
+    static redisReply *listlrem(redisContext *c, const string &key, const string &len, const string &value)
+    {
+        string cmd = "lrem " + key + " " + len + " " + value;
+        redisReply *r = (redisReply *)redisCommand(c, cmd.c_str());
+        return r;
+    }
     static redisReply *exists(redisContext *c, const string &key)
     {
         string cmd = "exists " + key;
