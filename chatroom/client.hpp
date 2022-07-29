@@ -1326,7 +1326,7 @@ void clnt::joingroup()
     }
     else if (strcmp(buf, "Yes") == 0)
     {
-        cout << "加入成功" << endl;
+        cout << "申请成功，等待管理员审核" << endl;
     }
 }
 
@@ -1636,6 +1636,78 @@ void clnt::kickmanagepeople()
 // 30查看群组申请列表，进行同意或拒绝
 void clnt::groupapplication()
 {
+    json jn;
+    string groupid;
+    string mmm;
+    groups grps;
+    privateChat pChat2;
+
+    cout << "请输入你要批阅群申请的群号，请不要超过20个字符，也不要包含空格" << endl;
+    while (!(cin >> groupid) || groupid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+    pChat.setFriendUid(groupid);    //设置群号
+    pChat.To_Json(jn, pChat);
+
+    flag = htonl(flag); //发送要进行的操作
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    char buf[BUFSIZ];
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    if (strcmp(buf, "No group") == 0)
+    {
+        cout << "该群不存在" << endl;
+        return;
+    }
+    else if (strcmp(buf, "you are not a member of this group") == 0)
+    {
+        cout << "你不是该群成员" << endl;
+        return;
+    }
+    else if (strcmp(buf, "You can't agree to someone else's friend request") == 0)
+    {
+        cout << "你只是普通成员，不能同意别人的群申请" << endl;
+        return;
+    }
+    else if (strcmp(buf, "No one has applied to join the group") == 0)
+    {
+        cout << "没有人申请加入群" << endl;
+        return;
+    }
+
+    jn = json::parse(buf);
+    pChat2.From_Json(jn, pChat2);
+    cout << "你是群" << pChat2.getFriendUid() << "的管理员"
+         << "，你收到了" << pChat2.getNumber() << "的加群申请" << endl;
+    printf("Yes同意/No拒绝\n");
+    while (!(cin >> mmm) || (mmm != "Yes" && mmm != "No"))
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+    ssock ::SendMsg(clnt_fd, mmm.c_str(), strlen(mmm.c_str()) + 1);
+    cout << "操作成功" << endl;
 }
 
 // 31踢人
@@ -1711,9 +1783,9 @@ void clnt::kickpeople()
     {
         cout << "踢人失败，你要踢的人也是管理员或是群主" << endl;
     }
-    else if (strcmp(buf, "Yes") == 0) 
+    else if (strcmp(buf, "Yes") == 0)
     {
-        cout << "踢人成功" << endl; 
+        cout << "踢人成功" << endl;
     }
 }
 //向服务器发送100，然后读取信息
@@ -1772,6 +1844,12 @@ void *continue_receive(void *arg)
         if (pChat2.getFlag() == SEND_FILE)
         {
             cout << "你收到了来自" << pChat2.getNumber() << "的文件，请去同意或拒绝" << endl;
+            continue;
+        }
+        if (pChat2.getFlag() == JOINGROUP)
+        {
+            cout << "你是群" << pChat2.getFriendUid() << "的管理员"
+                 << "，你收到了" << pChat2.getNumber() << "的加群申请" << endl;
             continue;
         }
         if (pChat.getFlag() == CHAT_SEND_FRIEND)
