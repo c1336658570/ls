@@ -1928,7 +1928,7 @@ void gay::groupapplication()
                     {
                         jn = json::parse(r->str);
                         freeReplyObject(r);
-                        ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()));
+                        ret = ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()));
                         if (ret == -1)
                         {
                             qqqqquit(clnt_sock);
