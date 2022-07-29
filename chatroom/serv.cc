@@ -3,10 +3,7 @@
 
 int main(int argc, char *argv[])
 {
-    set<string> friends; //保存在线用户的uid。
-    list<User> offline;  //保存离线的聊天记录，存放发送消息那个人的user信息，对方上线后在该list中查找
-    list<string> groups; //群id号，不能和用户id重复，群id号作为群索引，通过该索引找到该群的所有信息，通过哈希存储，里面包含了用户id和用户权限
-
+    c = Redis::RedisConnect("127.0.0.1", 6379);
     ThreadPool pool(10);
 
     account s;

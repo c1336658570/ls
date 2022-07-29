@@ -15,7 +15,6 @@ using namespace std;
 
 void *chat_recv_friend(void *arg);                 //接受好友消息的线程
 void *continue_receive(void *arg);                 //持续从服务器读数据的线程
-void *pthread_send_file(void *arg);                //专门发文件的线程
 unsigned long long htonll(unsigned long long val); //主机序转网络序
 unsigned long long ntohll(unsigned long long val); //网络序转主机序
 void *pthread_recv_file(void *arg);                //收文件的线程
@@ -1003,36 +1002,21 @@ void clnt::send_file()
         return;
     }
 
-    file f;
-    f.clnt_sock = clnt_fd;
-    f.filefd = filefd;
-    pthread_t tid;
-    pthread_create(&tid, NULL, pthread_send_file, &f);
-    pthread_detach(tid);
-}
-
-//发文件的线程
-void *pthread_send_file(void *arg)
-{
-    file *f = (file *)arg;
-
     __off_t size;
     struct stat file_stat;
     //为了获取文件大小
-    fstat(f->filefd, &file_stat);
+    fstat(filefd, &file_stat);
     size = file_stat.st_size;
     size = htonll(size);
-    ssock::SendMsg(f->clnt_sock, (void *)&size, sizeof(size));
+    ssock::SendMsg(clnt_fd, (void *)&size, sizeof(size));
 
     int ret;
-    while ((ret = sendfile(f->clnt_sock, f->filefd, NULL, file_stat.st_size)) != 0)
+    while ((ret = sendfile(clnt_fd, filefd, NULL, file_stat.st_size)) != 0)
     {
     }
     cout << "发送完毕" << endl;
 
-    close(f->filefd);
-
-    return NULL;
+    close(filefd);
 }
 
 // 20接收文件

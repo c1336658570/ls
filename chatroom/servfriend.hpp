@@ -26,6 +26,7 @@ using namespace std;
 
 unsigned long long htonll(unsigned long long val); //主机序转网络序
 unsigned long long ntohll(unsigned long long val); //网络序转主机序
+redisContext *c;
 
 void qqqqquit(int clnt_sock) //将其从在线用户中删除
 {
@@ -2322,7 +2323,7 @@ void gay::send_file_group() // 35从客户端读文件
     redisContext *c;
     redisReply *r, *r2;
     string message = "message";
-    string file = "file";
+    string file1 = "file1";
 
     int ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
     cout << "ret = " << ret << endl;
@@ -2449,7 +2450,7 @@ void gay::send_file_group() // 35从客户端读文件
                         freeReplyObject(r2);
 
                         //将消息写到一个列表里（包括其中的文件名），让客户端可以知道自己要哪个文件
-                        r2 = Redis::listrpush(c, r->element[i]->str + file, jn.dump().c_str());
+                        r2 = Redis::listrpush(c, r->element[i]->str + file1, jn.dump().c_str());
                         freeReplyObject(r2);
                     }
                 }
@@ -2489,7 +2490,7 @@ void gay::recv_file_group() // 36给群成员发文件
     pChat.setServ_fd(clnt_sock); //将套间字修改回去
 
     redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
-    redisReply *r = Redis::listlen(c, pChat.getNumber() + "file");
+    redisReply *r = Redis::listlen(c, pChat.getNumber() + "file1");
     if (r == NULL)
     {
         printf("Execut getValue failure\n");
@@ -2500,7 +2501,7 @@ void gay::recv_file_group() // 36给群成员发文件
 
     for (int i = 0; i < listlen; ++i)
     {
-        r = Redis::listlpop(c, pChat.getNumber() + "file");
+        r = Redis::listlpop(c, pChat.getNumber() + "file1");
         cout << r->str << endl;
         jn2 = json::parse(r->str);
         pChat2.From_Json(jn2, pChat2); //将会修改pChat中本来的文件描述符
