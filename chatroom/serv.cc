@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     int opt = 1;
     setsockopt(serv_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&opt, sizeof(opt));
     ssock::Bind(serv_fd, atoi(argv[2]), argv[1]);
-    ssock::Listen(serv_fd, 128);
+    ssock::Listen(serv_fd, 0);
 
     efd = epoll_create(OPEN_MAX);
     if (efd == -1)

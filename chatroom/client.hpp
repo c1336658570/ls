@@ -55,6 +55,10 @@ public:
     void quitgroup();             // 25退出群
     void hasjoingroup();          // 26查看已加入的群组
     void groupmembers();          // 27查看群组成员
+    void pullmanagepeople();      // 28设置管理员
+    void kickmanagepeople();      // 29取消管理员
+    void groupapplication();      // 30查看群组申请列表，进行同意或拒绝
+    void kickpeople();            // 31踢人
 
 private:
     uint32_t flag;     //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
@@ -1147,7 +1151,7 @@ void clnt::show_Menu5()
         cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
 
         pChat.setFlag(flag);
-        if (flag == RETURNON3)
+        if (flag == RETURNON3) // 32返回上一层
         {
             break;
         }
@@ -1168,18 +1172,20 @@ void clnt::show_Menu5()
         case HASJOINGROUP: // 26查看已加入的群组
             hasjoingroup();
             break;
-        case GROUPMEMBERS: // 27、查看群组成员
+        case GROUPMEMBERS: // 27查看群组成员
             groupmembers();
             break;
-        case PULLMANAGEPEPOLE:
+        case PULLMANAGEPEOPLE: // 28设置管理员
+            pullmanagepeople();
             break;
-        case KICKMANAGEPEOPLE:
+        case KICKMANAGEPEOPLE: // 29取消管理员
+            kickmanagepeople();
             break;
-        case GROUPAPPLICATION:
+        case GROUPAPPLICATION: // 30、查看群组成员申请列表
+            groupapplication();
             break;
-        case KICKPEOPLE:
-            break;
-        case RETURNON3:
+        case KICKPEOPLE: // 31、从群组中移除用户
+            kickpeople();
             break;
         }
     }
@@ -1412,6 +1418,304 @@ void clnt::hasjoingroup()
     }
 }
 
+// 27查看群组成员
+void clnt::groupmembers()
+{
+    json jn;
+    string groupid;
+    groups grps;
+
+    cout << "请输入你要查看的群号，请不要超过20个字符，也不要包含空格" << endl;
+    while (!(cin >> groupid) || groupid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+    pChat.setFriendUid(groupid);    //设置群号
+    pChat.To_Json(jn, pChat);
+
+    flag = htonl(flag); //发送要进行的操作
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    char buf[BUFSIZ];
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    if (strcmp(buf, "No group") == 0)
+    {
+        cout << "该群不存在" << endl;
+        return;
+    }
+    else if (strcmp(buf, "you are not a member of this group") == 0)
+    {
+        cout << "你不是该群成员" << endl;
+        return;
+    }
+    //从服务器读群成员
+    while (1)
+    {
+        ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+        if (strcmp(buf, "finish") == 0)
+        {
+            break;
+        }
+
+        jn = json::parse(buf);
+        grps.From_Json(jn, grps);
+        if (grps.getflag() == 0)
+            cout << "uid：" << grps.getuser_number() << "，权限："
+                 << "普通成员" << endl;
+        if (grps.getflag() == 1)
+            cout << "uid：" << grps.getuser_number() << "，权限："
+                 << "管理员" << endl;
+        if (grps.getflag() == 2)
+            cout << "uid：" << grps.getuser_number() << "，权限："
+                 << "群主" << endl;
+    }
+}
+
+void clnt::pullmanagepeople() // 28设置管理员
+{
+    json jn;
+    string groupid, uid;
+    groups grps;
+
+    cout << "请输入你要设置管理员的群号，请不要超过20个字符，也不要包含空格" << endl;
+    while (!(cin >> groupid) || groupid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    cout << "请输入你要设置的管理员id，请不要超过20个字符，也不要包含空格" << endl;
+    while (!(cin >> uid) || uid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+    pChat.setFriendUid(groupid);    //设置群号
+    pChat.setMessage(uid);          //设置管理员id
+    pChat.To_Json(jn, pChat);
+    if (uid == u.getNumber())
+    {
+        cout << "不可以修改自己的权限" << endl;
+        return;
+    }
+
+    flag = htonl(flag); //发送要进行的操作
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    char buf[BUFSIZ];
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    if (strcmp(buf, "No group") == 0)
+    {
+        cout << "该群不存在" << endl;
+    }
+    else if (strcmp(buf, "you are not a member of this group") == 0)
+    {
+        cout << "你不是该群成员" << endl;
+    }
+    else if (strcmp(buf, "not the group owner") == 0)
+    {
+        cout << "你不是该群群主" << endl;
+    }
+    else if (strcmp(buf, "No user") == 0)
+    {
+        cout << "该账号未加入该群" << endl;
+    }
+    else if (strcmp(buf, "Yes") == 0)
+    {
+        cout << "设置成功" << endl;
+    }
+}
+
+// 29取消管理员
+void clnt::kickmanagepeople()
+{
+    json jn;
+    string groupid, uid;
+    groups grps;
+
+    cout << "请输入你要取消管理员的群号，请不要超过20个字符，也不要包含空格" << endl;
+    while (!(cin >> groupid) || groupid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    cout << "请输入你要取消的管理员id，请不要超过20个字符，也不要包含空格" << endl;
+    while (!(cin >> uid) || uid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+    pChat.setFriendUid(groupid);    //设置群号
+    pChat.setMessage(uid);          //设置管理员id
+    pChat.To_Json(jn, pChat);
+    if (uid == u.getNumber())
+    {
+        cout << "不可以修改自己的权限" << endl;
+        return;
+    }
+
+    flag = htonl(flag); //发送要进行的操作
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    char buf[BUFSIZ];
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    if (strcmp(buf, "No group") == 0)
+    {
+        cout << "该群不存在" << endl;
+    }
+    else if (strcmp(buf, "you are not a member of this group") == 0)
+    {
+        cout << "你不是该群成员" << endl;
+    }
+    else if (strcmp(buf, "not the group owner") == 0)
+    {
+        cout << "你不是该群群主" << endl;
+    }
+    else if (strcmp(buf, "No user") == 0)
+    {
+        cout << "该账号未加入该群" << endl;
+    }
+    else if (strcmp(buf, "Yes") == 0)
+    {
+        cout << "取消成功" << endl;
+    }
+}
+
+// 30查看群组申请列表，进行同意或拒绝
+void clnt::groupapplication()
+{
+}
+
+// 31踢人
+void clnt::kickpeople()
+{
+    json jn;
+    string groupid, uid;
+    groups grps;
+
+    cout << "请输入你要踢人的群号，请不要超过20个字符，也不要包含空格" << endl;
+    while (!(cin >> groupid) || groupid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    cout << "请输入你要踢的人的id，请不要超过20个字符，也不要包含空格" << endl;
+    while (!(cin >> uid) || uid.size() > 20)
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+    pChat.setFriendUid(groupid);    //设置群号
+    pChat.setMessage(uid);          //设置管理员id
+    pChat.To_Json(jn, pChat);
+    if (uid == u.getNumber())
+    {
+        cout << "不可以踢自己，只能踢其他群成员" << endl;
+        return;
+    }
+
+    flag = htonl(flag); //发送要进行的操作
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    char buf[BUFSIZ];
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    if (strcmp(buf, "No group") == 0)
+    {
+        cout << "该群不存在" << endl;
+    }
+    else if (strcmp(buf, "you are not a member of this group") == 0)
+    {
+        cout << "你不是该群成员" << endl;
+    }
+    else if (strcmp(buf, "you can't kick people") == 0)
+    {
+        cout << "你只是普通成员，不能踢人" << endl;
+    }
+    else if (strcmp(buf, "No user") == 0)
+    {
+        cout << "该账号未加入该群" << endl;
+    }
+    else if (strcmp(buf, "Failed to kick") == 0)
+    {
+        cout << "踢人失败，你要踢的人也是管理员或是群主" << endl;
+    }
+    else if (strcmp(buf, "Yes") == 0) 
+    {
+        cout << "踢人成功" << endl; 
+    }
+}
 //向服务器发送100，然后读取信息
 void *continue_receive(void *arg)
 {

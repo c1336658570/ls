@@ -96,6 +96,11 @@ public:
     void joingroup();            // 24加入群
     void quitgroup();            // 25退出群
     void hasjoingroup();         // 26查看已加入的群组
+    void groupmembers();         // 27查看群组成员
+    void pullmanagepeople();     // 28设置管理员
+    void kickmanagepeople();     // 29取消管理员
+    void groupapplication();     // 30查看群组申请列表，进行同意或拒绝
+    void kickpeople();           // 31踢人
 
 private:
     pthread_mutex_t mutex;
@@ -169,6 +174,19 @@ void startpchat(void *arg)
     case HASJOINGROUP: // 26查看已加入的群组
         g.hasjoingroup();
         break;
+    case GROUPMEMBERS: // 27查看群组成员
+        g.groupmembers();
+        break;
+    case PULLMANAGEPEOPLE: // 28设置管理员
+        g.pullmanagepeople();
+        break;
+    case KICKMANAGEPEOPLE: // 29取消管理员
+        g.kickmanagepeople();
+        break;
+    case GROUPAPPLICATION: // 30查看群组申请列表，进行同意或拒绝
+        g.groupapplication();
+    case KICKPEOPLE:
+        g.kickpeople(); // 31踢人
     }
 }
 
@@ -1395,6 +1413,414 @@ void gay::hasjoingroup()
         }
         ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
 
+    } while (0);
+    freeReplyObject(r);
+    redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+}
+
+// 27查看群组成员
+void gay::groupmembers()
+{
+    privateChat pChat2;
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd(); //获取服务器套间字
+    char buf[BUFSIZ];
+    int ret;
+    json jn;
+    groups grps;
+
+    ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    jn = json::parse(buf);
+    pChat2.From_Json(jn, pChat2);
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r;
+    do
+    {
+        r = Redis::exists(c, pChat2.getFriendUid() + "group"); //判断一个key是否已经存在，即判断群是否已经存在
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            break;
+        }
+        if (r->integer == 0)
+        {
+            printf("该群不存在\n");
+            freeReplyObject(r);
+            ssock::SendMsg(clnt_sock, "No group", strlen("No group") + 1);
+            break;
+        }
+        else
+        {
+            freeReplyObject(r);
+
+            r = Redis::hgethash(c, pChat2.getFriendUid() + "group", pChat2.getNumber()); //获取自己在该群的信息
+            if (r == NULL)
+            {
+                printf("Execut getValue failure\n");
+                break;
+            }
+            if (r->str == NULL) //该群不存在自己
+            {
+                printf("你不是该群成员，无法查看该群成员信息\n");
+                freeReplyObject(r);
+                //你不是该群成员
+                ssock::SendMsg(clnt_sock, "you are not a member of this group", strlen("you are not a member of this group") + 1);
+                break;
+            }
+            else //存在
+            {
+                freeReplyObject(r);
+                ssock::SendMsg(clnt_sock, "Yes", strlen("Yes") + 1);
+                r = Redis::hgethashall(c, pChat2.getFriendUid() + "group");
+                for (int i = 0; i < r->elements; ++i) //遍历群列表
+                {
+                    if (i % 2 == 1) //偶数是key，奇数是value
+                    {
+                        jn = json::parse(r->element[i]->str);
+                        ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+                    }
+                }
+                ssock::SendMsg(clnt_sock, "finish", strlen("finish") + 1);
+            }
+        }
+    } while (0);
+    redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+}
+
+// 28设置管理员
+void gay::pullmanagepeople()
+{
+    privateChat pChat2;
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd(); //获取服务器套间字
+    char buf[BUFSIZ];
+    int ret;
+    json jn, jn2;
+    groups grps;
+
+    ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    jn = json::parse(buf);
+    pChat2.From_Json(jn, pChat2);
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r;
+    do
+    {
+        r = Redis::exists(c, pChat2.getFriendUid() + "group"); //判断一个key是否已经存在，即判断群是否已经存在
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            break;
+        }
+        if (r->integer == 0)
+        {
+            printf("该群号数据库中没有\n");
+            freeReplyObject(r);
+            ssock::SendMsg(clnt_sock, "No group", strlen("No group") + 1);
+            break;
+        }
+        else
+        {
+            freeReplyObject(r);
+
+            r = Redis::hgethash(c, pChat2.getFriendUid() + "group", pChat2.getNumber());
+            if (r == NULL)
+            {
+                printf("Execut getValue failure\n");
+                break;
+            }
+            if (r->str == NULL) //判断该用户是否是群成员
+            {
+                printf("你不是该群成员\n");
+                freeReplyObject(r);
+                //你不是该群成员
+                ssock::SendMsg(clnt_sock, "you are not a member of this group", strlen("you are not a member of this group") + 1);
+                break;
+            }
+            else
+            {
+                jn2 = json::parse(r->str);
+                grps.From_Json(jn2, grps);
+                freeReplyObject(r);
+                if (grps.getflag() != 2) //判断该用户是否是群主
+                {
+                    cout << "你不是该群群主" << endl;
+                    ssock::SendMsg(clnt_sock, "not the group owner", strlen("not the group owner") + 1);
+                    break;
+                }
+                else
+                {
+                    r = Redis::hgethash(c, pChat2.getFriendUid() + "group", pChat2.getMessage());
+                    if (r == NULL)
+                    {
+                        printf("Execut getValue failure\n");
+                        break;
+                    }
+                    if (r->str == NULL)
+                    {
+                        printf("要设置的管理员不是该群成员\n");
+                        freeReplyObject(r);
+                        //你不是该群成员
+                        ssock::SendMsg(clnt_sock, "No user", strlen("No user") + 1);
+                        break;
+                    }
+                    jn2 = json::parse(r->str);
+                    grps.From_Json(jn2, grps);
+                    grps.setflag(1);
+                    grps.To_Json(jn2, grps);
+                    freeReplyObject(r);
+                    //将该群保存群成员的哈希中的该用户的权限改为1
+                    r = Redis::hsetValue(c, pChat2.getFriendUid() + "group", pChat2.getMessage(), jn2.dump());
+                    freeReplyObject(r);
+                    //在用户保存自己加入的群的哈希中修改自己在该群的权限为管理员
+                    r = Redis::hsetValue(c, pChat2.getMessage() + "groups", pChat2.getFriendUid(), jn2.dump());
+                    freeReplyObject(r);
+                    cout << "设置成功" << endl;
+                    ssock::SendMsg(clnt_sock, "Yes", strlen("Yes") + 1);
+                }
+            }
+        }
+    } while (0);
+    redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+}
+
+// 29取消管理员
+void gay::kickmanagepeople()
+{
+    privateChat pChat2;
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd(); //获取服务器套间字
+    char buf[BUFSIZ];
+    int ret;
+    json jn, jn2;
+    groups grps;
+
+    ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    jn = json::parse(buf);
+    pChat2.From_Json(jn, pChat2);
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r;
+    do
+    {
+        r = Redis::exists(c, pChat2.getFriendUid() + "group"); //判断一个key是否已经存在，即判断群是否已经存在
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            break;
+        }
+        if (r->integer == 0)
+        {
+            printf("该群号数据库中没有\n");
+            freeReplyObject(r);
+            ssock::SendMsg(clnt_sock, "No group", strlen("No group") + 1);
+            break;
+        }
+        else
+        {
+            freeReplyObject(r);
+
+            r = Redis::hgethash(c, pChat2.getFriendUid() + "group", pChat2.getNumber());
+            if (r == NULL)
+            {
+                printf("Execut getValue failure\n");
+                break;
+            }
+            if (r->str == NULL) //判断该用户是否是群成员
+            {
+                printf("你不是该群成员\n");
+                freeReplyObject(r);
+                //你不是该群成员
+                ssock::SendMsg(clnt_sock, "you are not a member of this group", strlen("you are not a member of this group") + 1);
+                break;
+            }
+            else
+            {
+                jn2 = json::parse(r->str);
+                grps.From_Json(jn2, grps);
+                freeReplyObject(r);
+                if (grps.getflag() != 2) //判断该用户是否是群主
+                {
+                    cout << "你不是该群群主" << endl;
+                    ssock::SendMsg(clnt_sock, "not the group owner", strlen("not the group owner") + 1);
+                    break;
+                }
+                else
+                {
+                    r = Redis::hgethash(c, pChat2.getFriendUid() + "group", pChat2.getMessage());
+                    if (r == NULL)
+                    {
+                        printf("Execut getValue failure\n");
+                        break;
+                    }
+                    if (r->str == NULL)
+                    {
+                        printf("要取消的管理员不是该群成员\n");
+                        freeReplyObject(r);
+                        //你不是该群成员
+                        ssock::SendMsg(clnt_sock, "No user", strlen("No user") + 1);
+                        break;
+                    }
+                    jn2 = json::parse(r->str);
+                    grps.From_Json(jn2, grps);
+                    grps.setflag(0);
+                    grps.To_Json(jn2, grps);
+                    freeReplyObject(r);
+                    //将该群保存群成员的哈希中的该用户的权限改为1
+                    r = Redis::hsetValue(c, pChat2.getFriendUid() + "group", pChat2.getMessage(), jn2.dump());
+                    freeReplyObject(r);
+                    //在用户保存自己加入的群的哈希中修改自己在该群的权限为管理员
+                    r = Redis::hsetValue(c, pChat2.getMessage() + "groups", pChat2.getFriendUid(), jn2.dump());
+                    freeReplyObject(r);
+                    cout << "设置成功" << endl;
+                    ssock::SendMsg(clnt_sock, "Yes", strlen("Yes") + 1);
+                }
+            }
+        }
+    } while (0);
+    redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+}
+// 30查看群组申请列表，进行同意或拒绝
+void gay::groupapplication()
+{
+}
+
+// 31踢人
+void gay::kickpeople()
+{
+    privateChat pChat2;
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd(); //获取服务器套间字
+    char buf[BUFSIZ];
+    int ret;
+    json jn, jn2;
+    groups grps, grps2;
+
+    ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    jn = json::parse(buf);
+    pChat2.From_Json(jn, pChat2);
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r;
+    do
+    {
+        r = Redis::exists(c, pChat2.getFriendUid() + "group"); //判断一个key是否已经存在，即判断群是否已经存在
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            break;
+        }
+        if (r->integer == 0)
+        {
+            printf("该群号数据库中没有\n");
+            freeReplyObject(r);
+            ssock::SendMsg(clnt_sock, "No group", strlen("No group") + 1);
+            break;
+        }
+        else
+        {
+            freeReplyObject(r);
+
+            r = Redis::hgethash(c, pChat2.getFriendUid() + "group", pChat2.getNumber());
+            if (r == NULL)
+            {
+                printf("Execut getValue failure\n");
+                break;
+            }
+            if (r->str == NULL) //判断该用户是否是群成员
+            {
+                printf("你不是该群成员\n");
+                freeReplyObject(r);
+                //你不是该群成员
+                ssock::SendMsg(clnt_sock, "you are not a member of this group", strlen("you are not a member of this group") + 1);
+                break;
+            }
+            else
+            {
+                jn2 = json::parse(r->str);
+                grps.From_Json(jn2, grps);
+                freeReplyObject(r);
+                if (grps.getflag() != 2 && grps.getflag() != 1) //判断用户是否是管理员或群主
+                {
+                    cout << "你只是普通成员，不能踢人" << endl;
+                    ssock::SendMsg(clnt_sock, "you can't kick people", strlen("you can't kick people") + 1);
+                    break;
+                }
+                else
+                {
+                    r = Redis::hgethash(c, pChat2.getFriendUid() + "group", pChat2.getMessage());
+                    if (r == NULL)
+                    {
+                        printf("Execut getValue failure\n");
+                        break;
+                    }
+                    if (r->str == NULL)
+                    {
+                        printf("要踢的人不是该群成员\n");
+                        freeReplyObject(r);
+                        //你不是该群成员
+                        ssock::SendMsg(clnt_sock, "No user", strlen("No user") + 1);
+                        break;
+                    }
+                    jn2 = json::parse(r->str);
+                    grps2.From_Json(jn2, grps2);
+                    freeReplyObject(r);
+                    if (grps.getflag() == 1 && grps2.getflag() >= 1)
+                    {
+                        cout << "踢人失败，你要踢的人也是管理员或是群主" << endl;
+                        ssock::SendMsg(clnt_sock, "Failed to kick", strlen("Failed to kick") + 1);
+                    }
+                    else
+                    {
+                        //将该用户从保存该群成员的哈希中删除
+                        r = Redis::hashdel(c, pChat2.getFriendUid() + "group", pChat2.getMessage());
+                        freeReplyObject(r);
+                        //将该群从要踢的人的群哈希里删除
+                        r = Redis::hashdel(c, pChat2.getMessage() + "groups", pChat2.getFriendUid());
+                        freeReplyObject(r);
+                        cout << "踢人成功" << endl;
+                        ssock::SendMsg(clnt_sock, "Yes", strlen("Yes") + 1);
+                    }
+                }
+            }
+        }
     } while (0);
     redisFree(c);
 
