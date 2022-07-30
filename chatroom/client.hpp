@@ -491,6 +491,8 @@ void clnt::addFriend()
         return;
     }
     pChat.setFriendUid(friendUid); //设置好友uid
+    pChat.setMessage("");          //将信息设置为空串，避免弹窗出问题，聊完天之后输入exit退出，
+    //然后直接选择添加好友的话message还是exit，由于在弹窗开头就判断了exit，如果是exit不会继续执行后续逻辑，会导致弹窗出问题。
 
     pChat.To_Json(jn, pChat); //将类转为序列
 
@@ -1289,6 +1291,8 @@ void clnt::joingroup()
     pChat.setNumber(u.getNumber()); //设置自己的uid
     pChat.setName(u.getName());     //设置自己的姓名
     pChat.setFriendUid(groupid);    //设置群号
+    pChat.setMessage("");           //将信息设置为空串，避免弹窗出问题，聊完天之后输入exit退出，
+    //然后直接选择添加群的话message还是exit，由于在弹窗开头就判断了exit，如果是exit不会继续执行后续逻辑，会导致弹窗出问题。
     pChat.To_Json(jn, pChat);
 
     flag = htonl(flag); //发送要进行的操作
@@ -2200,10 +2204,16 @@ void *continue_receive(void *arg)
             {
                 if (pChat2.getNumber() == pChat.getFriendUid())
                 {
-                    continue;
+                }
+                else
+                {
+                    cout << "你收到了来自" << pChat2.getNumber() << "的一条消息，请在历史记录中查看" << endl;
                 }
             }
-            cout << "你收到了来自" << pChat2.getNumber() << "的一条消息，请在历史记录中查看" << endl;
+            else
+            {
+                cout << "你收到了来自" << pChat2.getNumber() << "的一条消息，请在历史记录中查看" << endl;
+            }
         }
         if (pChat2.getFlag() == CHAT_SEND_GROUP)
         {
@@ -2211,10 +2221,16 @@ void *continue_receive(void *arg)
             {
                 if (pChat2.getFriendUid() == pChat.getFriendUid())
                 {
-                    continue;
+                }
+                else
+                {
+                    cout << "你收到了来自群" << pChat2.getFriendUid() << "的一条消息，请在历史记录中查看" << endl;
                 }
             }
-            cout << "你收到了来自群" << pChat2.getFriendUid() << "的一条消息，请在历史记录中查看" << endl;
+            else
+            {
+                cout << "你收到了来自群" << pChat2.getFriendUid() << "的一条消息，请在历史记录中查看" << endl;
+            }
         }
     }
 }

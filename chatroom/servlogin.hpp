@@ -217,6 +217,7 @@ void account::reg()
     {
         printf("Execut getValue failure\n");
         redisFree(c);
+        close(clnt_sock);
         return;
     }
     if (r->integer == 0)
@@ -233,7 +234,7 @@ void account::reg()
         ssock::SendMsg(clnt_sock, "No", 2);
     }
     redisFree(c);
-    close(u.getServ_fd());
+    close(clnt_sock);
 }
 
 //找回密码
@@ -257,6 +258,7 @@ void account::retrieve()
     {
         printf("Execut getValue failure\n");
         redisFree(c);
+        close(clnt_sock);
         return;
     }
     if (r->type != REDIS_REPLY_STRING)
@@ -265,6 +267,7 @@ void account::retrieve()
         freeReplyObject(r);
         redisFree(c);
         ssock::SendMsg(clnt_sock, "No", 2);
+        close(clnt_sock);
         return;
     }
     json jn2 = json::parse(r->str);
@@ -283,6 +286,7 @@ void account::retrieve()
 
     freeReplyObject(r);
     redisFree(c);
+    close(clnt_sock);
 }
 
 void account::setEfd(const int &e)

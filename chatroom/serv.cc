@@ -64,6 +64,7 @@ int main(int argc, char *argv[])
             if (ep[i].data.fd == serv_fd)
             {
                 clnt_fd = ssock::Accept(serv_fd);
+                printf("%d连接\n", clnt_fd);
 
                 int permission = fcntl(clnt_fd, F_GETFL);
                 permission |= O_NONBLOCK;
@@ -80,28 +81,21 @@ int main(int argc, char *argv[])
             else
             { //不是监听套间字
                 sock = ep[i].data.fd;
-                uint32_t flag = 0;
-
-                ret = ssock::ReadMsg(sock, (void *)&flag, sizeof(flag));
-                if (ret == 0)
-                {
-                    ret = epoll_ctl(efd, EPOLL_CTL_DEL, ep[i].data.fd, NULL); //将该文件描述符从红黑树摘除
-                    if (ret == -1)
-                    {
-                        ssock::perr_exit("epoll_ctr error");
-                    }
-                    qqqqquit(sock); //将其从在线用户中删除
-                    close(sock);    //关闭与该客户端的链接
-                    cout << sock << "关闭";
-                    continue;
-                }
-                flag = ntohl(flag);
-
                 ret = epoll_ctl(efd, EPOLL_CTL_DEL, ep[i].data.fd, NULL); //将该文件描述符从红黑树摘除
                 if (ret == -1)
                 {
                     ssock::perr_exit("epoll_ctr error");
                 }
+
+                uint32_t flag = 0;
+
+                ret = ssock::ReadMsg(sock, (void *)&flag, sizeof(flag));
+                if (ret == 0)
+                {
+                    qqqqquit(sock); //将其从在线用户中删除
+                    continue;
+                }
+                flag = ntohl(flag);
 
                 if (flag == 100)
                 {

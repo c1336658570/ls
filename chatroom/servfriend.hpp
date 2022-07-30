@@ -29,6 +29,8 @@ unsigned long long ntohll(unsigned long long val); //网络序转主机序
 
 void qqqqquit(int clnt_sock) //将其从在线用户中删除
 {
+    int ret = close(clnt_sock);
+    printf("closeret = %d，%d关闭\n", ret, clnt_sock);
     json jn;
     onlineUser onlineU;
     redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
@@ -52,6 +54,7 @@ void qqqqquit(int clnt_sock) //将其从在线用户中删除
                 if (r == NULL)
                 {
                     printf("Execut getValue failure\n");
+
                     redisFree(c);
                     return;
                 }
@@ -219,6 +222,9 @@ int gay::getefd()
 
 void gay::signout() // 9退出登录
 {
+    int ret = close(pChat.getServ_fd());
+    printf("close ret = %d\n", ret);
+
     int clnt_sock = pChat.getServ_fd();
     char buf[BUFSIZ];
     json jn;
@@ -243,7 +249,6 @@ void gay::signout() // 9退出登录
     }
 
     //退出操作，执行完不需要将文件描述符挂上监听红黑树，将文件描述符关闭
-    close(pChat.getServ_fd());
 
     freeReplyObject(r);
     redisFree(c);
