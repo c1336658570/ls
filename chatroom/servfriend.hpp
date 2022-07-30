@@ -68,8 +68,6 @@ void qqqqquit(int clnt_sock) //将其从在线用户中删除
     }
 
     freeReplyObject(r);
-
-    //将通过ctrl+c退出的程序从在线用户中删除，不需要close文件描述符，主函数已经做了
     redisFree(c);
 }
 
@@ -379,6 +377,7 @@ void gay::inquqireAdd()
         {
             qqqqquit(clnt_sock);
             freeReplyObject(r);
+            redisFree(c);
             return;
         }
         freeReplyObject(r);
@@ -386,6 +385,7 @@ void gay::inquqireAdd()
         if (ret == 0)
         {
             qqqqquit(clnt_sock);
+            redisFree(c);
             return;
         }
         if (strcmp(buf, "Yes") == 0)
@@ -415,6 +415,7 @@ void gay::inquqireAdd()
     if (ret == -1)
     {
         qqqqquit(clnt_sock);
+        redisFree(c);
         return;
     }
 
@@ -702,6 +703,7 @@ void gay::history_message()
         if (ret == -1)
         {
             qqqqquit(clnt_sock);
+            redisFree(c);
             return;
         }
     }
@@ -709,8 +711,10 @@ void gay::history_message()
     if (ret == -1)
     {
         qqqqquit(clnt_sock);
+        redisFree(c);
         return;
     }
+    redisFree(c);
 
     //执行完添加后将文件描述符挂上监听红黑树
     ep.events = EPOLLIN | EPOLLET;
@@ -744,6 +748,7 @@ void gay::talkwithfriends()
         if (ret == 0)
         {
             qqqqquit(clnt_sock); //下线
+            redisFree(c);
             return;
         }
 
@@ -769,6 +774,7 @@ void gay::talkwithfriends()
             if (ret == -1)
             {
                 qqqqquit(clnt_sock);
+                redisFree(c);
                 return;
             }
             //将消息写入自己的列表里。意味着自己关闭，continue_receive线程需要开始工作了
@@ -792,6 +798,7 @@ void gay::talkwithfriends()
             if (ret == -1)
             {
                 qqqqquit(clnt_sock);
+                redisFree(c);
                 return;
             }
             freeReplyObject(r);
@@ -863,6 +870,7 @@ void gay::talkwithfriends()
             if (ret == -1)
             {
                 qqqqquit(clnt_sock);
+                redisFree(c);
                 return;
             }
         }
@@ -993,6 +1001,7 @@ void gay::send_file()
         if (ret == 0)
         {
             qqqqquit(clnt_sock);
+            redisFree(c);
             return;
         }
 
@@ -1015,6 +1024,7 @@ void gay::send_file()
             if (n == 0)
             {
                 qqqqquit(clnt_sock);
+                redisFree(c);
                 return;
             }
             size -= n;
@@ -1085,12 +1095,8 @@ void gay::recv_file()
         if (ret == -1)
         {
             qqqqquit(clnt_sock);
-            return;
-        }
-        if (ret == -1)
-        {
-            qqqqquit(clnt_sock);
             freeReplyObject(r);
+            redisFree(c);
             return;
         }
         freeReplyObject(r);
@@ -1098,6 +1104,7 @@ void gay::recv_file()
         if (ret == 0)
         {
             qqqqquit(clnt_sock);
+            redisFree(c);
             return;
         }
         if (strcmp(buf, "Yes") == 0)
@@ -1120,17 +1127,23 @@ void gay::recv_file()
             if (ret == -1)
             {
                 qqqqquit(clnt_sock);
+                redisFree(c);
                 return;
             }
             cout << "file_stat.st_size = " << file_stat.st_size << endl;
             while ((ret = sendfile(clnt_sock, filefd, NULL, file_stat.st_size)) != 0)
             {
-                cout << "ret = " << ret << endl;
-                if (ret == -1 && errno == EPIPE)
+                cout << "errno = " << errno << endl;
+                perror("sendfile");
+                if (ret == -1 && errno == 104)
                 {
+                    cout << "errno" << errno << endl;
                     qqqqquit(clnt_sock);
+                    redisFree(c);
+                    close(filefd);
                     return;
                 }
+                cout << 1 << endl;
             }
             cout << "ret = " << ret << endl;
 
@@ -1145,6 +1158,7 @@ void gay::recv_file()
     if (ret == -1)
     {
         qqqqquit(clnt_sock);
+        redisFree(c);
         return;
     }
 
@@ -1538,6 +1552,7 @@ void gay::hasjoingroup()
                 if (ret == -1)
                 {
                     qqqqquit(clnt_sock);
+                    redisFree(c);
                     return;
                 }
             }
@@ -1546,6 +1561,7 @@ void gay::hasjoingroup()
         if (ret == -1)
         {
             qqqqquit(clnt_sock);
+            redisFree(c);
             return;
         }
 
@@ -1937,12 +1953,14 @@ void gay::groupapplication()
                         if (ret == -1)
                         {
                             qqqqquit(clnt_sock);
+                            redisFree(c);
                             return;
                         }
                         ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
                         if (ret == 0)
                         {
                             qqqqquit(clnt_sock);
+                            redisFree(c);
                             return;
                         }
                         if (strcmp(buf, "Yes") == 0)
@@ -2108,6 +2126,7 @@ void gay::history_groupmessage() // 33查看群历史消息记录
     {
         printf("Execut getValue failure\n");
         redisFree(c);
+        return;
     }
     for (int i = 0; i < r->elements; ++i) //遍历消息记录
     {
@@ -2117,6 +2136,7 @@ void gay::history_groupmessage() // 33查看群历史消息记录
         if (ret == -1)
         {
             qqqqquit(clnt_sock);
+            redisFree(c);
             return;
         }
     }
@@ -2124,8 +2144,10 @@ void gay::history_groupmessage() // 33查看群历史消息记录
     if (ret == -1)
     {
         qqqqquit(clnt_sock);
+        redisFree(c);
         return;
     }
+    redisFree(c);
 
     //执行完添加后将文件描述符挂上监听红黑树
     ep.events = EPOLLIN | EPOLLET;
@@ -2157,6 +2179,7 @@ void gay::chat_send_group() // 34给群发消息
         if (ret == 0)
         {
             qqqqquit(clnt_sock); //下线
+            redisFree(c);
             return;
         }
 
@@ -2182,6 +2205,7 @@ void gay::chat_send_group() // 34给群发消息
             if (ret == -1)
             {
                 qqqqquit(clnt_sock);
+                redisFree(c);
                 return;
             }
             //将消息写入自己的列表里。意味着自己关闭，continue_receive线程需要开始工作了
@@ -2204,6 +2228,7 @@ void gay::chat_send_group() // 34给群发消息
             if (ret == -1)
             {
                 qqqqquit(clnt_sock);
+                redisFree(c);
                 return;
             }
             continue;
@@ -2227,6 +2252,7 @@ void gay::chat_send_group() // 34给群发消息
                 if (ret == -1)
                 {
                     qqqqquit(clnt_sock);
+                    redisFree(c);
                     return;
                 }
                 continue;
@@ -2279,6 +2305,7 @@ void gay::chat_send_group() // 34给群发消息
                                 if (ret == -1)
                                 {
                                     qqqqquit(clnt_sock);
+                                    redisFree(c);
                                     return;
                                 }
                             }
@@ -2360,6 +2387,7 @@ void gay::send_file_group() // 35从客户端读文件
             if (ret == -1)
             {
                 qqqqquit(clnt_sock);
+                redisFree(c);
                 return;
             }
             break;
@@ -2404,6 +2432,7 @@ void gay::send_file_group() // 35从客户端读文件
                 if (ret == 0)
                 {
                     qqqqquit(clnt_sock);
+                    redisFree(c);
                     return;
                 }
                 size = ntohll(size);
@@ -2425,6 +2454,7 @@ void gay::send_file_group() // 35从客户端读文件
                     if (n == 0)
                     {
                         qqqqquit(clnt_sock);
+                        redisFree(c);
                         return;
                     }
                     size -= n;
@@ -2514,6 +2544,7 @@ void gay::recv_file_group() // 36给群成员发文件
         {
             qqqqquit(clnt_sock);
             freeReplyObject(r);
+            redisFree(c);
             return;
         }
         freeReplyObject(r);
@@ -2521,6 +2552,7 @@ void gay::recv_file_group() // 36给群成员发文件
         if (ret == 0)
         {
             qqqqquit(clnt_sock);
+            redisFree(c);
             return;
         }
         if (strcmp(buf, "Yes") == 0)
@@ -2543,6 +2575,7 @@ void gay::recv_file_group() // 36给群成员发文件
             if (ret == -1)
             {
                 qqqqquit(clnt_sock);
+                redisFree(c);
                 return;
             }
             cout << "file_stat.st_size = " << file_stat.st_size << endl;
@@ -2552,6 +2585,7 @@ void gay::recv_file_group() // 36给群成员发文件
                 if (ret == -1 && errno == EPIPE)
                 {
                     qqqqquit(clnt_sock);
+                    redisFree(c);
                     return;
                 }
             }
@@ -2568,6 +2602,7 @@ void gay::recv_file_group() // 36给群成员发文件
     if (ret == -1)
     {
         qqqqquit(clnt_sock);
+        redisFree(c);
         return;
     }
 
@@ -2622,6 +2657,7 @@ void *continue_send(void *arg)
         {
             qqqqquit(clnt_sock);
             freeReplyObject(r);
+            redisFree(c);
             return NULL;
         }
         freeReplyObject(r);
@@ -2630,6 +2666,7 @@ void *continue_send(void *arg)
     if (ret == -1)
     {
         qqqqquit(clnt_sock);
+        redisFree(c);
         return NULL;
     }
 
