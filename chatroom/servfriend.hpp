@@ -1041,10 +1041,8 @@ void gay::send_file()
             if (n == 0)
             {
                 cout << "len = " << len << endl; //已经接收的文件长度
-                //将未发完的文件的文件偏移量等信息保存到数据库中
-                pChat.setName(longtostring(len));
-                pChat.To_Json(jn3, pChat);
-                r = Redis::listrpush(c, pChat.getNumber() + "partfile", jn3.dump());
+                r = Redis::listrpush(c, pChat.getNumber() + "partfile1", jn.dump());
+                freeReplyObject(r);
                 qqqqquit(clnt_sock);
                 redisFree(c);
                 fclose(fp);
@@ -1154,11 +1152,10 @@ void gay::recv_file()
                 redisFree(c);
                 return;
             }
-            cout << "file_stat.st_size = " << file_stat.st_size << endl;
+
             while ((ret = sendfile(clnt_sock, filefd, NULL, file_stat.st_size)) != 0)
             {
-                cout << "errno = " << errno << endl;
-                perror("sendfile");
+                cout << "ret = " << ret << endl;
                 if (ret == -1 && errno == 104)
                 {
                     cout << "errno" << errno << endl;
@@ -1167,7 +1164,6 @@ void gay::recv_file()
                     close(filefd);
                     return;
                 }
-                cout << 1 << endl;
             }
             cout << "ret = " << ret << endl;
 
@@ -2673,7 +2669,7 @@ void gay::send_part_file()
         c = Redis::RedisConnect("127.0.0.1", 6379);
 
         //判断是否有未发送完的文件
-        r = Redis::listlpop(c, pChat.getNumber() + "partfile");
+        r = Redis::listlpop(c, pChat.getNumber() + "partfile1");
         if (r == NULL)
         {
             printf("Execut getValue failure\n");
@@ -2683,6 +2679,7 @@ void gay::send_part_file()
         if (r->str == NULL)
         {
             ssock::SendMsg(clnt_sock, "No file", strlen("No file") + 1);
+            freeReplyObject(r);
             break;
         }
         else
@@ -2740,7 +2737,13 @@ void gay::send_part_file()
         freeReplyObject(r);
 
         ssock::SendMsg(clnt_sock, jn2.dump().c_str(), strlen(jn2.dump().c_str()) + 1); //给对端发送消息，让对端确认是否继续发送未发完的文件
-        ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+        ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+        if (ret == 0)
+        {
+            qqqqquit(clnt_sock);
+            redisFree(c);
+            return;
+        }
         if (strcmp(buf, "No") == 0) //对端发No代表不继续发送文件，结束该函数
         {
             break;
@@ -2798,10 +2801,8 @@ void gay::send_part_file()
             if (n == 0)
             {
                 cout << "len = " << len << endl; //已经接收的文件长度
-                //将未发完的文件的文件偏移量等信息保存到数据库中
-                pChat.setName(longtostring(len));
-                pChat.To_Json(jn2, pChat);
-                r = Redis::listrpush(c, pChat.getNumber() + "partfile", jn2.dump());
+                r = Redis::listrpush(c, pChat.getNumber() + "partfile1", jn2.dump());
+                freeReplyObject(r);
                 qqqqquit(clnt_sock);
                 redisFree(c);
                 return;
