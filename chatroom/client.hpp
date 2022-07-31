@@ -200,14 +200,14 @@ void clnt::login() //登录
         jn = json::parse(buf);
         u.From_Json(jn, u);
         u.print();
-        pChat.setNumber(u.getNumber());                               //在此处设置number，一直读消息的线程需要使用
+        pChat.setNumber(u.getNumber()); //在此处设置number，一直读消息的线程需要使用
         pthread_create(&tid, NULL, continue_receive, (void *)&pChat); //创建一个接受消息的线程
         pthread_detach(tid);                                          //设置线程分离
 
         //###########################################################
         //调用函数，判断是否有上次没有发送完的文件
         send_part_file(); //发送未发送完的文件
-        recv_part_file(); //接收未接收完的文件
+        // recv_part_file(); //接收未接收完的文件
         show_Meun2();
     }
 }

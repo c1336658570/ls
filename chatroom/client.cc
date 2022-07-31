@@ -11,13 +11,14 @@ g++ -o client client.cc client.hpp ssock.cpp -lhiredis
 
 int main(int argc, char *argv[])
 {
-    clnt a;
-    a.show_Menu1(argv);
     if (argc != 3)
     {
         printf("Usage : %s <IP> <port>\n", argv[0]);
         exit(-1);
     }
+
+    clnt a;
+    a.show_Menu1(argv);
 
     return 0;
 }

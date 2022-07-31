@@ -55,7 +55,6 @@ void qqqqquit(int clnt_sock) //将其从在线用户中删除
                 if (r == NULL)
                 {
                     printf("Execut getValue failure\n");
-
                     redisFree(c);
                     return;
                 }
@@ -63,12 +62,12 @@ void qqqqquit(int clnt_sock) //将其从在线用户中删除
                 {
                     cout << "下线失败" << endl;
                 }
+                freeReplyObject(r);
+
                 break;
             }
         }
     }
-
-    freeReplyObject(r);
     redisFree(c);
 }
 
@@ -931,7 +930,7 @@ void gay::send_file()
     struct epoll_event ep;
     int clnt_sock = pChat.getServ_fd();
     char buf[BUFSIZ];
-    json jn, jn2, jn3;
+    json jn, jn2;
 
     friends fri;
     redisContext *c;
@@ -983,13 +982,13 @@ void gay::send_file()
             redisFree(c);
             break;
         }
-        jn3 = json::parse(r->str);
-        fri.From_Json(jn3, fri);
+        jn2 = json::parse(r->str);
+        freeReplyObject(r);
+        fri.From_Json(jn2, fri);
         if (fri.getflag() == 0)
         {
             cout << "屏蔽了" << endl;
             ssock::SendMsg(clnt_sock, "Has block", strlen("Has block") + 1); //将消息转发给自己
-            freeReplyObject(r);
             redisFree(c);
             break;
         }
@@ -997,7 +996,6 @@ void gay::send_file()
         {
             ssock::SendMsg(clnt_sock, "No block", strlen("No block") + 1);
         }
-        freeReplyObject(r);
 
         string filename(pChat.getMessage()); //文件名
         auto f = filename.rfind('/');
@@ -1152,10 +1150,11 @@ void gay::recv_file()
                 redisFree(c);
                 return;
             }
-
+            cout << "file_stat.st_size = " << file_stat.st_size << endl;
             while ((ret = sendfile(clnt_sock, filefd, NULL, file_stat.st_size)) != 0)
             {
-                cout << "ret = " << ret << endl;
+                cout << "errno = " << errno << endl;
+                perror("sendfile");
                 if (ret == -1 && errno == 104)
                 {
                     cout << "errno" << errno << endl;
@@ -1164,6 +1163,7 @@ void gay::recv_file()
                     close(filefd);
                     return;
                 }
+                cout << 1 << endl;
             }
             cout << "ret = " << ret << endl;
 
@@ -2645,7 +2645,7 @@ void gay::send_part_file()
     struct epoll_event ep;
     int clnt_sock = pChat.getServ_fd();
     char buf[BUFSIZ];
-    json jn, jn2, jn3;
+    json jn, jn2;
 
     friends fri;
     redisContext *c;
@@ -2680,15 +2680,16 @@ void gay::send_part_file()
         {
             ssock::SendMsg(clnt_sock, "No file", strlen("No file") + 1);
             freeReplyObject(r);
+            redisFree(c);
             break;
         }
         else
         {
             ssock::SendMsg(clnt_sock, "Yes", strlen("Yes") + 1);
         }
-        jn2 = json::parse(r->str);
+        jn = json::parse(r->str);
         freeReplyObject(r);
-        pChat.From_Json(jn2, pChat);
+        pChat.From_Json(jn, pChat);
         pChat.setServ_fd(clnt_sock); //将套间字修改回去
 
         //判断发送者发送的人是否是它的好友
@@ -2720,8 +2721,8 @@ void gay::send_part_file()
             redisFree(c);
             break;
         }
-        jn3 = json::parse(r->str);
-        fri.From_Json(jn3, fri);
+        jn2 = json::parse(r->str);
+        fri.From_Json(jn2, fri);
         if (fri.getflag() == 0)
         {
             cout << "屏蔽了" << endl;
@@ -2736,14 +2737,8 @@ void gay::send_part_file()
         }
         freeReplyObject(r);
 
-        ssock::SendMsg(clnt_sock, jn2.dump().c_str(), strlen(jn2.dump().c_str()) + 1); //给对端发送消息，让对端确认是否继续发送未发完的文件
-        ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
-        if (ret == 0)
-        {
-            qqqqquit(clnt_sock);
-            redisFree(c);
-            return;
-        }
+        ssock::SendMsg(clnt_sock, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //给对端发送消息，让对端确认是否继续发送未发完的文件
+        ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
         if (strcmp(buf, "No") == 0) //对端发No代表不继续发送文件，结束该函数
         {
             break;
@@ -2801,7 +2796,7 @@ void gay::send_part_file()
             if (n == 0)
             {
                 cout << "len = " << len << endl; //已经接收的文件长度
-                r = Redis::listrpush(c, pChat.getNumber() + "partfile1", jn2.dump());
+                r = Redis::listrpush(c, pChat.getNumber() + "partfile1", jn.dump());
                 freeReplyObject(r);
                 qqqqquit(clnt_sock);
                 redisFree(c);
@@ -2814,10 +2809,10 @@ void gay::send_part_file()
         }
 
         //将消息写入一个列表里，然后在客户端从该列表中读取数据，提醒客户端有数据来了
-        r = Redis::listrpush(c, pChat.getFriendUid() + "message", jn2.dump().c_str());
+        r = Redis::listrpush(c, pChat.getFriendUid() + "message", jn.dump().c_str());
         freeReplyObject(r);
         //将消息写到一个列表里（包括其中的文件名），让客户端可以知道自己要哪个文件
-        r = Redis::listrpush(c, pChat.getFriendUid() + "file", jn2.dump().c_str());
+        r = Redis::listrpush(c, pChat.getFriendUid() + "file", jn.dump().c_str());
         freeReplyObject(r);
 
         fclose(fp);
@@ -2861,6 +2856,7 @@ void *continue_send(void *arg)
     {
         printf("Execut getValue failure\n");
         redisFree(c);
+        return NULL;
     }
     int listlen = r->integer;
     freeReplyObject(r);

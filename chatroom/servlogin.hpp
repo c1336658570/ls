@@ -176,6 +176,7 @@ bool account::login()
         onlineU.setflag(0);              //在线用户状态
         onlineU.To_Json(jn3, onlineU);
         r = Redis::hsetValue(c, "Onlineuser", u.getNumber(), jn3.dump());
+        freeReplyObject(r);
         redisFree(c);
 
         //登录成功后将文件描述符挂上监听红黑树
