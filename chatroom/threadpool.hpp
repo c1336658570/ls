@@ -132,6 +132,7 @@ ThreadPool::ThreadPool(int num)
         {
             pthread_t tid;
             pthread_create(&tid, NULL, worker, this);
+            pthread_detach(tid);
         }
 
     } while (0);

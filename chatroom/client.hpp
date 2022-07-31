@@ -1850,7 +1850,7 @@ void clnt::groupapplication()
 
     char buf[BUFSIZ];
 
-    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    int ret = ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
     if (strcmp(buf, "No group") == 0)
     {
         cout << "该群不存在" << endl;
@@ -1873,6 +1873,7 @@ void clnt::groupapplication()
     }
 
     jn = json::parse(buf);
+    cout << jn.dump() << endl;
     pChat2.From_Json(jn, pChat2);
     cout << "你是群" << pChat2.getFriendUid() << "的管理员"
          << "，你收到了" << pChat2.getNumber() << "的加群申请" << endl;

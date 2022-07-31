@@ -7,7 +7,7 @@
 #include <iostream>
 using namespace std;
 
-class Redis
+class Redis1
 {
 public:
     //打开数据库

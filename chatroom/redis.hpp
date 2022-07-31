@@ -60,25 +60,25 @@ public:
     int disConnect();                                                  //断开连接
     redisReply *setValue(const string &key, const string &value);      //添加或修改键值对，成功返回0，失败<0
     redisReply *getValue(const string &key);                           //获取键对应的值，成功返回0，失败<0
-    redisReply *existsValue(const string &key);                        //判断一个Key是否存在
+    redisReply *exists(const string &key);                             //判断一个Key是否存在
     redisReply *delKey(const string &key);                             //删除键，成功返回影响的行数，失败<0
 
     redisReply *hsetValue(const string &key, const string &field, const string &value); //插入哈希表
-    redisReply *hashexists(const string &key, const string &field);                     //查看是否存在，存在返回1，不存在返回0
-    redisReply *gethash(const string &key, const string &field);                        //获取对应的hash_value
+    redisReply *hsetexist(const string &key, const string &field);                     //查看是否存在，存在返回1，不存在返回0
+    redisReply *hgethash(const string &key, const string &field);                       //获取对应的hash_value
     redisReply *hashdel(const string &key, const string &field);                        //从哈希表删除指定的元素
     redisReply *hgethashall(const string &key);                                         //获取哈希中所有元素
 
     //对list进行操作
-    redisReply *lpush(const string &key, const string &value);
-    redisReply *rpush(const string &key, const string &value);
-    redisReply *lpop(const string &key);
-    redisReply *rpop(const string &key);
-    redisReply *lrem(const string &key, const string &len, const string &value);
-    redisReply *llen(const string &key);
-    redisReply *lrange(const string &key);                     //返回所有消息
-    redisReply *lrange(const string &key, string a, string b); //返回指定的消息记录
-    redisReply *ltrim(const string &key);                      //删除链表中的所有元素
+    redisReply *listlpush(const string &key, const string &value);
+    redisReply *listrpush(const string &key, const string &value);
+    redisReply *listlpop(const string &key);
+    redisReply *listrpop(const string &key);
+    redisReply *listlrem(const string &key, const string &len, const string &value);
+    redisReply *listlen(const string &key);
+    redisReply *listlrange(const string &key);                     //返回所有消息
+    redisReply *listlrange(const string &key, string a, string b); //返回指定的消息记录
+    redisReply *listltrim(const string &key);                      //删除链表中的所有元素
     redisReply *getredisReply();
 
 private:
@@ -132,7 +132,6 @@ int Redis::RedisConnect(const string &addr = "127.0.0.1", int port = 6379, const
 //断开链接
 int Redis::disConnect()
 {
-    freeReplyObject(pm_rr);
     redisFree(pm_rct);
     return 1;
 }
@@ -151,7 +150,7 @@ redisReply *Redis::getValue(const string &key) //获取键对应的值，成功�
     return pm_rr;
 }
 
-redisReply *Redis::existsValue(const string &key)
+redisReply *Redis::exists(const string &key)
 {
     string cmd = "exists " + key;
     pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
@@ -172,14 +171,14 @@ redisReply *Redis::hsetValue(const string &key, const string &field, const strin
     return pm_rr;
 }
 
-redisReply *Redis::hashexists(const string &key, const string &field) //查看是否存在，存在返回1，不存在返回0
+redisReply *Redis::hsetexist(const string &key, const string &field) //查看是否存在，存在返回1，不存在返回0
 {
     string cmd = "hexists  " + key + "  " + field;
     pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
     return pm_rr;
 }
 
-redisReply *Redis::gethash(const string &key, const string &field) //获取对应的hash_value
+redisReply *Redis::hgethash(const string &key, const string &field) //获取对应的hash_value
 {
     string cmd = "hget  " + key + "  " + field;
     pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
@@ -200,62 +199,62 @@ redisReply *Redis::hgethashall(const string &key) //遍历哈希中的所有元�
     return pm_rr;
 }
 
-redisReply *Redis::lpush(const string &key, const string &value)
+redisReply *Redis::listlpush(const string &key, const string &value)
 {
     string cmd = "lpush  " + key + " " + value;
     pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
     return pm_rr;
 }
 
-redisReply *Redis::rpush(const string &key, const string &value)
+redisReply *Redis::listrpush(const string &key, const string &value)
 {
     string cmd = "rpush  " + key + " " + value;
     pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
     return pm_rr;
 }
 
-redisReply *Redis::lpop(const string &key)
+redisReply *Redis::listlpop(const string &key)
 {
     string cmd = "lpop  " + key;
     pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
     return pm_rr;
 }
-redisReply *Redis::rpop(const string &key)
+redisReply *Redis::listrpop(const string &key)
 {
     string cmd = "rpop  " + key;
     pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
     return pm_rr;
 }
 
-redisReply *Redis::lrem(const string &key, const string &len, const string &value)
+redisReply *Redis::listlrem(const string &key, const string &len, const string &value)
 {
     string cmd = "lrem " + key + " " + len + " " + value;
     pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
     return pm_rr;
 }
 
-redisReply *Redis::llen(const string &key)
+redisReply *Redis::listlen(const string &key)
 {
     string cmd = "llen  " + key;
     pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
     return pm_rr;
 }
 
-redisReply *Redis::lrange(const string &key) //返回所有消息
+redisReply *Redis::listlrange(const string &key) //返回所有消息
 {
     string cmd = "lrange  " + key + "  0" + "  -1";
     pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
     return pm_rr;
 }
 
-redisReply *Redis::lrange(const string &key, string a, string b) //返回指定的消息记录
+redisReply *Redis::listlrange(const string &key, string a, string b) //返回指定的消息记录
 {
     string cmd = "lrange  " + key + "  " + a + "  " + b;
     pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
     return pm_rr;
 }
 
-redisReply *Redis::ltrim(const string &key) //删除链表中的所有元素
+redisReply *Redis::listltrim(const string &key) //删除链表中的所有元素
 {
     string cmd = "ltrim  " + key + " 1 " + " 0 ";
     pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());

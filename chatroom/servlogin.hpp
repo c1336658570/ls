@@ -18,6 +18,7 @@ g++ -o account account.cc account.hpp ssock.cpp -lhiredis
 #include <signal.h>
 #include "message.hpp"
 #include "redis1.hpp"
+#include "redis.hpp"
 #include "threadpool.hpp"
 #include "macro.h"
 using namespace std;
@@ -120,13 +121,13 @@ bool account::login()
     u.setServ_fd(clnt_sock); //重新设置u中的serv_fd
 
     //打开数据库
-    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    Redis redis;
+    redis.RedisConnect();
     //在在线用户中查找看有没有当前用户，如果有登录失败，否则继续判断
-    redisReply *r = Redis::hsetexist(c, "Onlineuser", u.getNumber());
+    redisReply *r = redis.hsetexist("Onlineuser", u.getNumber());
     if (r == NULL)
     {
         printf("Execut getValue failure\n");
-        redisFree(c);
         close(clnt_sock); //登录失败，关闭套间字
         return false;
     }
@@ -134,7 +135,6 @@ bool account::login()
     {
         ssock::SendMsg(clnt_sock, "has online", strlen("has online") + 1);
         freeReplyObject(r);
-        redisFree(c);
         close(clnt_sock); //登录失败，关闭套间字
         return false;
     }
@@ -142,12 +142,12 @@ bool account::login()
 
     //查找与Number同名的哈希表，在map中查找密码，如果秘密相同返回该用户所有信息，
     //密码不同返回No
-    r = Redis::hgethash(c, "account", u.getNumber());
+    r = redis.hgethash("account", u.getNumber());
 
     if (r == NULL)
     {
         printf("Execut getValue failure\n");
-        redisFree(c);
+
         close(clnt_sock); //登录失败，关闭套间字
         return false;
     }
@@ -155,7 +155,6 @@ bool account::login()
     {
         printf("Execut getValue failure\n");
         freeReplyObject(r);
-        redisFree(c);
         ssock::SendMsg(clnt_sock, "No", 2);
         close(clnt_sock); //登录失败，关闭套间字
         return false;
@@ -175,9 +174,8 @@ bool account::login()
         onlineU.setsock(u.getServ_fd()); //在线用户的套间字
         onlineU.setflag(0);              //在线用户状态
         onlineU.To_Json(jn3, onlineU);
-        r = Redis::hsetValue(c, "Onlineuser", u.getNumber(), jn3.dump());
+        r = redis.hsetValue("Onlineuser", u.getNumber(), jn3.dump());
         freeReplyObject(r);
-        redisFree(c);
 
         //登录成功后将文件描述符挂上监听红黑树
         ep.events = EPOLLIN | EPOLLET;
@@ -194,7 +192,7 @@ bool account::login()
     {
         ssock::SendMsg(clnt_sock, "No", 2);
         freeReplyObject(r);
-        redisFree(c);
+
         close(u.getServ_fd()); //登录失败关闭套间字
         return false;
     }
@@ -211,13 +209,14 @@ void account::reg()
     u.From_Json(jn, u); //将会修改u中本来的内容，导致u中的内容改变
     u.setServ_fd(clnt_sock);
 
-    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    Redis redis;
+    redis.RedisConnect();
 
-    redisReply *r = Redis::hsetexist(c, "account", u.getNumber());
+    redisReply *r = redis.hsetexist("account", u.getNumber());
     if (r == NULL)
     {
         printf("Execut getValue failure\n");
-        redisFree(c);
+
         close(clnt_sock);
         return;
     }
@@ -225,7 +224,7 @@ void account::reg()
     {
         printf("该账号数据库中没有\n");
         freeReplyObject(r);
-        r = Redis::hsetValue(c, "account", u.getNumber(), jn.dump());
+        r = redis.hsetValue("account", u.getNumber(), jn.dump());
         freeReplyObject(r);
         ssock::SendMsg(clnt_sock, "Yes", 3);
     }
@@ -234,7 +233,7 @@ void account::reg()
         freeReplyObject(r);
         ssock::SendMsg(clnt_sock, "No", 2);
     }
-    redisFree(c);
+
     close(clnt_sock);
 }
 
@@ -250,15 +249,16 @@ void account::retrieve()
     u.setServ_fd(clnt_sock); //将会修改u中本来的内容，导致U中的文件描述符被改变
 
     //打开数据库
-    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    Redis redis;
+    redis.RedisConnect();
     //查找与Number同名的哈希表，在map中查找密码，如果秘密相同返回该用户所有信息，
     //密码不同返回No
 
-    redisReply *r = Redis::hgethash(c, "account", u.getNumber());
+    redisReply *r = redis.hgethash("account", u.getNumber());
     if (r == NULL)
     {
         printf("Execut getValue failure\n");
-        redisFree(c);
+
         close(clnt_sock);
         return;
     }
@@ -266,7 +266,6 @@ void account::retrieve()
     {
         printf("Execut getValue failure\n");
         freeReplyObject(r);
-        redisFree(c);
         ssock::SendMsg(clnt_sock, "No", 2);
         close(clnt_sock);
         return;
@@ -284,9 +283,8 @@ void account::retrieve()
         ssock::SendMsg(clnt_sock, "No", 2);
     }
     close(u.getServ_fd());
-
     freeReplyObject(r);
-    redisFree(c);
+
     close(clnt_sock);
 }
 
