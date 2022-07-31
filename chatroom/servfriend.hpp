@@ -107,6 +107,7 @@ public:
     void send_file_group();      // 35给群发文件
     void recv_file_group();      // 36接收群文件
     void send_part_file();       // 38接收未接收完的文件
+    void recv_part_file();       // 39发送未发送完的文件
 
 private:
     pthread_mutex_t mutex;
@@ -210,6 +211,8 @@ void startpchat(void *arg)
     case SENDPARTFILE: // 38接收未发送完的文件
         g.send_part_file();
         break;
+    case RECVPARTFILE: // 39接收未接收完的文件
+        g.recv_part_file();
     }
 }
 
@@ -1159,11 +1162,12 @@ void gay::recv_file()
                 {
                     cout << "errno" << errno << endl;
                     qqqqquit(clnt_sock);
+                    r = Redis::listrpush(c, pChat.getNumber() + "partfile2", jn2.dump());
+                    freeReplyObject(r);
                     redisFree(c);
                     close(filefd);
                     return;
                 }
-                cout << 1 << endl;
             }
             cout << "ret = " << ret << endl;
 
@@ -2668,7 +2672,7 @@ void gay::send_part_file()
     {
         c = Redis::RedisConnect("127.0.0.1", 6379);
 
-        //判断是否有未发送完的文件
+        //判断是否有未接收完的文件
         r = Redis::listlpop(c, pChat.getNumber() + "partfile1");
         if (r == NULL)
         {
@@ -2817,6 +2821,136 @@ void gay::send_part_file()
 
         fclose(fp);
         redisFree(c);
+    } while (0);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+}
+
+// 39发送未发送完的文件
+void gay::recv_part_file()
+{
+    privateChat pChat2;
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd();
+    char buf[BUFSIZ];
+    json jn, jn2;
+    int ret;
+
+    ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    if (ret == 0)
+    {
+        qqqqquit(clnt_sock);
+        cout << "clnt_sock"
+             << "关闭" << endl;
+        return;
+    }
+    jn = json::parse(buf);
+    pChat.From_Json(jn, pChat);  //将序列转为类，会修改原有的套间字
+    pChat.setServ_fd(clnt_sock); //将套间字修改回去
+
+    redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
+    redisReply *r;
+
+    do
+    {
+        //判断是否有未发送完的文件
+        r = Redis::listlpop(c, pChat.getNumber() + "partfile2");
+
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            redisFree(c);
+            break;
+        }
+        if (r->str == NULL)
+        {
+            ssock::SendMsg(clnt_sock, "No file", strlen("No file") + 1);
+            freeReplyObject(r);
+            redisFree(c);
+            break;
+        }
+        else
+        {
+            ssock::SendMsg(clnt_sock, "Yes", strlen("Yes") + 1);
+        }
+
+        cout << r->str << endl;
+        jn2 = json::parse(r->str);
+        pChat2.From_Json(jn2, pChat2);
+        ret = ssock::SendMsg(clnt_sock, r->str, strlen(r->str) + 1);
+        freeReplyObject(r);
+        if (ret == -1)
+        {
+            qqqqquit(clnt_sock);
+            redisFree(c);
+            return;
+        }
+
+        ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+        if (ret == 0)
+        {
+            qqqqquit(clnt_sock);
+            redisFree(c);
+            return;
+        }
+        if (strcmp(buf, "Yes") == 0)
+        {
+            cout << "同意接收" << endl;
+            string filename(pChat2.getMessage()); //文件名
+            auto f = filename.rfind('/');
+            filename.erase(0, f + 1);
+            filename.insert(0, "../Temporaryfiles/");
+            int filefd = open(filename.c_str(), O_RDONLY);
+
+            __off_t size, len;
+            struct stat file_stat;
+            //为了获取文件大小
+            fstat(filefd, &file_stat);
+            ssock::ReadMsg(clnt_sock, (void *)&len, sizeof(len));
+            len = ntohll(len);
+            cout << "len = " << len << endl;
+            lseek(filefd, len, SEEK_SET); //设置文件偏移量为len
+            size = file_stat.st_size - len;
+            size = htonll(size);
+
+            ssock::SendMsg(clnt_sock, (void *)&size, sizeof(size));
+            if (ret == -1)
+            {
+                qqqqquit(clnt_sock);
+                redisFree(c);
+                return;
+            }
+
+            while ((ret = sendfile(clnt_sock, filefd, NULL, file_stat.st_size)) != 0)
+            {
+                cout << "errno = " << errno << endl;
+                perror("sendfile");
+                if (ret == -1 && (errno == 104 || errno == EPIPE))
+                {
+                    cout << "errno" << errno << endl;
+                    qqqqquit(clnt_sock);
+                    r = Redis::listrpush(c, pChat.getNumber() + "partfile2", jn2.dump());
+                    freeReplyObject(r);
+                    redisFree(c);
+                    close(filefd);
+                    return;
+                }
+            }
+            cout << "ret = " << ret << endl;
+
+            close(filefd);
+        }
+        else
+        {
+            cout << "拒绝接收" << endl;
+        }
     } while (0);
 
     //执行完添加后将文件描述符挂上监听红黑树

@@ -3,6 +3,7 @@
 
 int main(int argc, char *argv[])
 {
+    setsp();
     ThreadPool pool(10);
 
     account s;
@@ -32,7 +33,6 @@ int main(int argc, char *argv[])
     {
         ssock::perr_exit("epoll_create error");
     }
-    setsp();
     s.setEfd(efd);
     g.setEfd(efd);
 
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
                     task.function = startlogin;
                     pool.addTask(task);
                 }
-                else if (flag >= 9 && flag <= 38)
+                else if (flag >= 9 && flag <= 39)
                 {
                     pthread_mutex_lock(&(g.getMutex()));
                     g.getpChat().setServ_fd(sock);

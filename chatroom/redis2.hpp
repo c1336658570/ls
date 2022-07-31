@@ -36,7 +36,6 @@ smembers setkey:返回 array reply->element[i]->str为返回结果值。
 
 #ifndef __REDIS2_H
 #define __REDIS2_H
-
 #include <hiredis/hiredis.h>
 #include <string>
 #include <cstring>
@@ -57,16 +56,28 @@ class Redis
 public:
     Redis();
     ~Redis();
-    int connect(const string &addr, int port, const string &pwd); //连接redis数据库：addr：IP地址，port：端口号，pwd：密码(默认为空)
-    int disConnect();                                             //断开连接
-    int setValue(const string &key, const string &value);         //添加或修改键值对，成功返回0，失败<0
-    string getValue(const string &key);                           //获取键对应的值，成功返回0，失败<0
-    int delKey(const string &key);                                //删除键，成功返回影响的行数，失败<0
+    int RedisConnect(const string &addr, int port, const string &pwd); //连接redis数据库：addr：IP地址，port：端口号，pwd：密码(默认为空)
+    int disConnect();                                                  //断开连接
+    int setValue(const string &key, const string &value);              //添加或修改键值对，成功返回0，失败<0
+    string getValue(const string &key);                                //获取键对应的值，成功返回0，失败<0
+    int delKey(const string &key);                                     //删除键，成功返回影响的行数，失败<0
 
     int hsetValue(const string &key, const string &field, const string &value); //插入哈希表
     int hashexists(const string &key, const string &field);                     //查看是否存在，存在返回1，不存在返回0
     string gethash(const string &key, const string &field);                     //获取对应的hash_value
     int hashdel(const string &key, const string &field);                        //从哈希表删除指定的元素
+    int hlen(const string &key);                                                //返回哈希表中的元素个数
+    int scard(const string &key);                                               //返回set集合里的元素个数
+    int saddvalue(const string &key, const string &value);                      //插入到集合
+    int sismember(const string &key, const string &value);                      //查看数据是否存在
+    int sremvalue(const string &key, const string &value);                      //将数据从set中移出
+    redisReply **smembers(const string &key);
+    //对list进行操作
+    int lpush(const string &key, const string &value);
+    int llen(const string &key);
+    redisReply **lrange(const string &key);                     //返回所有消息
+    redisReply **lrange(const string &key, string a, string b); //返回指定的消息记录
+    int ltrim(const string &key);                               //删除链表中的所有元素
 
 private:
     string m_addr;        // IP地址
@@ -97,7 +108,7 @@ Redis::~Redis()
 }
 //连接数据库
 //失败返回M_CONNECT_FAIL
-int Redis::connect(const string &addr = "127.0.0.1", int port = 6379, const string &pwd = "")
+int Redis::RedisConnect(const string &addr = "127.0.0.1", int port = 6379, const string &pwd = "")
 {
     m_addr = addr;
     m_port = port;
@@ -157,6 +168,77 @@ string Redis::gethash(const string &key, const string &field) //获取对应的h
 int Redis::hashdel(const string &key, const string &field) //从哈希表删除指定的元素
 {
     string cmd = "hdel  " + key + "  " + field;
+    pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
+    return pm_rr->type;
+}
+
+int Redis::saddvalue(const string &key, const string &value) //插入到集合
+{
+    string cmd = "sadd  " + key + "  " + value;
+    pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
+    return pm_rr->type;
+}
+int Redis::sismember(const string &key, const string &value) //查看数据是否存在
+{
+    string cmd = "sismember  " + key + "  " + value;
+    pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
+    return pm_rr->integer;
+}
+int Redis::sremvalue(const string &key, const string &value) //将数据从set中移出
+{
+    string cmd = "srem  " + key + "  " + value;
+    pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
+    return pm_rr->type;
+}
+int Redis::hlen(const string &key) //返回哈希表中的元素个数
+{
+    string cmd = "hlen  " + key;
+    pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
+    return pm_rr->integer;
+}
+int Redis::scard(const string &key) //返回set集合里的元素个数
+{
+    string cmd = "scard  " + key;
+    pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
+    return pm_rr->integer;
+}
+redisReply **Redis::smembers(const string &key)
+{
+    string cmd = "smembers  " + key;
+    pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
+    return pm_rr->element;
+}
+
+int Redis::lpush(const string &key, const string &value)
+{
+    string cmd = "lpush  " + key + " " + value;
+    pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
+    return pm_rr->type;
+}
+int Redis::llen(const string &key)
+{
+    string cmd = "llen  " + key;
+    pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
+    return pm_rr->integer;
+}
+
+redisReply **Redis::lrange(const string &key) //返回所有消息
+{
+    string cmd = "lrange  " + key + "  0" + "  -1";
+    pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
+    return pm_rr->element;
+}
+
+redisReply **Redis::lrange(const string &key, string a, string b) //返回指定的消息记录
+{
+    string cmd = "lrange  " + key + "  " + a + "  " + b;
+    pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
+    return pm_rr->element;
+}
+
+int Redis::ltrim(const string &key) //删除链表中的所有元素
+{
+    string cmd = "ltrim  " + key + " 1 " + " 0 ";
     pm_rr = (redisReply *)redisCommand(pm_rct, cmd.c_str());
     return pm_rr->type;
 }

@@ -200,14 +200,14 @@ void clnt::login() //登录
         jn = json::parse(buf);
         u.From_Json(jn, u);
         u.print();
-        pChat.setNumber(u.getNumber()); //在此处设置number，一直读消息的线程需要使用
+        pChat.setNumber(u.getNumber());                               //在此处设置number，一直读消息的线程需要使用
         pthread_create(&tid, NULL, continue_receive, (void *)&pChat); //创建一个接受消息的线程
         pthread_detach(tid);                                          //设置线程分离
 
         //###########################################################
         //调用函数，判断是否有上次没有发送完的文件
         send_part_file(); //发送未发送完的文件
-        // recv_part_file(); //接收未接收完的文件
+        recv_part_file(); //接收未接收完的文件
         show_Meun2();
     }
 }
@@ -298,8 +298,96 @@ void clnt::send_part_file()
     close(filefd);
 }
 
+//接收未接收完的文件
 void clnt::recv_part_file()
 {
+    privateChat pChat2;
+    json jn;
+    char buf[BUFSIZ];
+    string message;
+
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+    pChat.setName(u.getName());     //设置自己的姓名
+    pChat.To_Json(jn, pChat);
+
+    flag = RECVPARTFILE;
+    flag = htonl(flag);
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    ssock::SendMsg(clnt_fd, (void *)jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    if (strcmp(buf, "No file") == 0)
+    {
+        return;
+    }
+
+    ssock::ReadMsg(clnt_fd, (void *)buf, sizeof(buf));
+    jn = json::parse(buf);
+    pChat2.From_Json(jn, pChat2);
+    cout << 6 << endl;
+
+    string filename(pChat2.getMessage()); //文件名及其文件路径
+    auto f = filename.rfind('/');
+    filename.erase(0, f + 1); //删除文件前缀，只保留文件名
+
+    cout << "你收到了" << pChat2.getNumber() << "的文件" << filename << endl;
+    cout << "Yes同意接收/No拒绝接收" << endl;
+    while (!(cin >> message) || (message != "Yes" && message != "No"))
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    ssock::SendMsg(clnt_fd, (void *)message.c_str(), strlen(message.c_str()) + 1);
+    if (message == "Yes")
+    {
+        __off_t len, size;
+        struct stat file_stat;
+        int filefd = open(filename.c_str(), O_RDONLY);
+        fstat(filefd, &file_stat);
+        len = file_stat.st_size; //获取已经接收的文件大小
+        close(filefd);
+        len = htonll(len);
+        ssock::SendMsg(clnt_fd, (void *)&len, sizeof(len));
+
+        cout << "接收成功" << endl;
+        FILE *fp = fopen(filename.c_str(), "a");
+        int n;
+
+        ssock::ReadMsg(clnt_fd, (void *)&size, sizeof(size));
+        size = ntohll(size);
+        while (size > 0)
+        {
+            if (sizeof(buf) < size)
+            {
+                n = ssock::Readn(clnt_fd, buf, sizeof(buf));
+            }
+            else
+            {
+                n = ssock::Readn(clnt_fd, buf, size);
+            }
+            if (n < 0)
+            {
+                continue;
+            }
+            cout << "size = " << size << endl;
+            size -= n;
+            fwrite(buf, n, 1, fp);
+        }
+
+        fclose(fp);
+    }
+    else
+    {
+        cout << "接收失败" << endl;
+    }
 }
 
 //注册
