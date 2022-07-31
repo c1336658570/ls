@@ -2215,16 +2215,20 @@ void clnt::send_file_group() // 35给群发文件
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将序列发给服务器
 
     ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
-    if (strcmp(buf, "No Group") == 0)
+    if (strcmp(buf, "No group") == 0)
     {
         cout << "没有该群" << endl;
+        close(filefd);
         return;
     }
-    if (strcmp(buf, "you are not a member of this group") == 0)
+    else if (strcmp(buf, "you are not a member of this group") == 0)
     {
+        cout << 4 << endl;
         cout << "你不是该群成员" << endl;
+        close(filefd);
         return;
     }
+    cout << 5 << endl;
 
     __off_t size;
     struct stat file_stat;
@@ -2235,6 +2239,7 @@ void clnt::send_file_group() // 35给群发文件
     ssock::SendMsg(clnt_fd, (void *)&size, sizeof(size));
 
     int ret;
+
     while ((ret = sendfile(clnt_fd, filefd, NULL, file_stat.st_size)) != 0)
     {
     }

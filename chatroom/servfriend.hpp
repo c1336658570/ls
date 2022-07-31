@@ -2371,6 +2371,7 @@ void gay::send_file_group() // 35从客户端读文件
     string message = "message";
     string file1 = "file1";
 
+    cout << "clnt_socl = " << clnt_sock << endl;
     int ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
     cout << "ret = " << ret << endl;
     if (ret == 0)
@@ -2383,6 +2384,7 @@ void gay::send_file_group() // 35从客户端读文件
     jn = json::parse(buf);
     pChat.From_Json(jn, pChat);  //将序列转为类，会修改原有的套间字
     pChat.setServ_fd(clnt_sock); //将套间字修改回去
+    cout << "clnt_socl = " << clnt_sock << endl;
     Redis redis;
     redis.RedisConnect("127.0.0.1", 6379);
 
@@ -2398,11 +2400,12 @@ void gay::send_file_group() // 35从客户端读文件
         {
             printf("该群号数据库中没有\n");
             freeReplyObject(r);
+            cout << "clnt_socl = " << clnt_sock << endl;
             ret = ssock::SendMsg(clnt_sock, "No group", strlen("No group") + 1);
+            cout << "ret = " << ret << endl;
             if (ret == -1)
             {
                 qqqqquit(clnt_sock);
-
                 return;
             }
             break;
@@ -2420,6 +2423,7 @@ void gay::send_file_group() // 35从客户端读文件
             if (r->str == NULL) //判断该用户是否是群成员
             {
                 printf("你不是该群成员\n");
+                cout << 5 << endl;
                 freeReplyObject(r);
                 //你不是该群成员
                 ssock::SendMsg(clnt_sock, "you are not a member of this group", strlen("you are not a member of this group") + 1);
