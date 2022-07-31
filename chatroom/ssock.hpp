@@ -150,7 +150,7 @@ ssize_t ssock::Readn(int fd, void *buffer, size_t n)
             return totRead;
         if (numRead == -1)
         {
-            if (errno == EINTR || errno == EWOULDBLOCK)
+            if (errno == EINTR || errno == EAGAIN)
                 continue;
             else
                 return -1;

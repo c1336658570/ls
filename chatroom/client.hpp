@@ -142,6 +142,7 @@ void clnt::read_account()
     cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
 
     cout << "请输入密码，不要超过20个字符" << endl;
+    system("stty -echo");
     while (!(cin >> passwd) || passwd.size() > 20)
     {
         if (cin.eof())
@@ -154,6 +155,8 @@ void clnt::read_account()
         cin.ignore(INT32_MAX, '\n');
     }
     cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+    system("stty echo");
+    printf("\n");
 
     u.setNumber(uid);    //设置账号
     u.setPasswd(passwd); //设置密码
@@ -224,6 +227,7 @@ void clnt::reg()
     cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
 
     cout << "请输入密匙，用来找回密码，不要超过20个字符" << endl;
+    system("stty -echo");
     while (!(cin >> key) || key.size() > 20)
     {
         if (cin.eof())
@@ -236,6 +240,8 @@ void clnt::reg()
         cin.ignore(INT32_MAX, '\n');
     }
     cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+    system("stty echo");
+    printf("\n");
 
     u.setKey(key);   //设置key
     u.setName(name); //设置昵称
@@ -288,6 +294,7 @@ void clnt::retrieve() //找回密码
     cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
 
     cout << "请输入你的密匙，不要超过20个字符" << endl;
+    system("stty -echo");
     while (!(cin >> key) || key.size() > 20)
     {
         if (cin.eof())
@@ -300,6 +307,8 @@ void clnt::retrieve() //找回密码
         cin.ignore(INT32_MAX, '\n');
     }
     cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+    system("stty echo");
+    printf("\n");
 
     u.setNumber(uid);
     u.setKey(key);
@@ -402,6 +411,7 @@ void clnt::signout() // 9退出登录
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
+    cout << jn.dump() << endl;
     close(clnt_fd);
     exit(0);
 }

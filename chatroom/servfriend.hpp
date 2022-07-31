@@ -220,18 +220,20 @@ int gay::getefd()
 
 void gay::signout() // 9退出登录
 {
-    int ret = close(pChat.getServ_fd());
-    printf("close ret = %d\n", ret);
 
     int clnt_sock = pChat.getServ_fd();
     char buf[BUFSIZ];
     json jn;
 
-    ssock::ReadMsg(clnt_sock, buf, BUFSIZ);
+    int ret = ssock::ReadMsg(clnt_sock, buf, BUFSIZ);
+    cout << "ret = " << ret << buf << endl;
     jn = json::parse(buf);
 
     pChat.From_Json(jn, pChat);  //将会修改pChat中本来的文件描述符
     pChat.setServ_fd(clnt_sock); //将文件描述符改回去
+
+    ret = close(pChat.getServ_fd());
+    printf("close ret = %d\n", ret);
 
     redisContext *c = Redis::RedisConnect("127.0.0.1", 6379);
     redisReply *r = Redis::hashdel(c, "Onlineuser", pChat.getNumber());
