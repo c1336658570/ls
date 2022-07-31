@@ -300,7 +300,6 @@ void clnt::send_part_file()
 
 void clnt::recv_part_file()
 {
-    
 }
 
 //注册
