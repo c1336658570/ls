@@ -1,6 +1,7 @@
 #ifndef SERVFRIEND_H
 #define SERVFRIEND_H
 #include <iostream>
+#include <sstream>
 #include <cstring>
 #include <string>
 #include <set>
@@ -106,6 +107,7 @@ public:
     void chat_send_group();      // 34给群发消息
     void send_file_group();      // 35给群发文件
     void recv_file_group();      // 36接收群文件
+    void send_part_file();       // 38接收未接收完的文件
 
 private:
     pthread_mutex_t mutex;
@@ -205,6 +207,9 @@ void startpchat(void *arg)
         break;
     case RECV_FILE_GROUP: // 36接收群文件
         g.recv_file_group();
+        break;
+    case SENDPARTFILE: // 38接收未发送完的文件
+        g.send_part_file();
         break;
     }
 }
@@ -911,6 +916,15 @@ void gay::talkwithfriends()
     }
 }
 
+string longtostring(long int t)
+{
+    std::string result;
+    stringstream ss;
+    ss << t;
+    ss >> result;
+    return result;
+}
+
 // 19从客户端读文件
 void gay::send_file()
 {
@@ -919,7 +933,7 @@ void gay::send_file()
     char buf[BUFSIZ];
     json jn, jn2, jn3;
 
-    friends fri, fri2;
+    friends fri;
     redisContext *c;
     redisReply *r;
 
@@ -970,8 +984,8 @@ void gay::send_file()
             break;
         }
         jn3 = json::parse(r->str);
-        fri2.From_Json(jn3, fri2);
-        if (fri2.getflag() == 0)
+        fri.From_Json(jn3, fri);
+        if (fri.getflag() == 0)
         {
             cout << "屏蔽了" << endl;
             ssock::SendMsg(clnt_sock, "Has block", strlen("Has block") + 1); //将消息转发给自己
@@ -1007,6 +1021,7 @@ void gay::send_file()
             return;
         }
 
+        __off_t len = 0; //用来保存已经接收的文件大小
         size = ntohll(size);
         cout << "size = " << size << endl;
         while (size > 0)
@@ -1025,10 +1040,17 @@ void gay::send_file()
             }
             if (n == 0)
             {
+                cout << "len = " << len << endl; //已经接收的文件长度
+                //将未发完的文件的文件偏移量等信息保存到数据库中
+                pChat.setName(longtostring(len));
+                pChat.To_Json(jn3, pChat);
+                r = Redis::listrpush(c, pChat.getNumber() + "partfile", jn3.dump());
                 qqqqquit(clnt_sock);
                 redisFree(c);
+                fclose(fp);
                 return;
             }
+            len += n;
             size -= n;
             fwrite(buf, n, 1, fp);
             cout << "size = " << size << endl;
@@ -2531,6 +2553,7 @@ void gay::recv_file_group() // 36给群成员发文件
     {
         printf("Execut getValue failure\n");
         redisFree(c);
+        return;
     }
     int listlen = r->integer;
     freeReplyObject(r);
@@ -2609,6 +2632,196 @@ void gay::recv_file_group() // 36给群成员发文件
     }
 
     redisFree(c);
+
+    //执行完添加后将文件描述符挂上监听红黑树
+    ep.events = EPOLLIN | EPOLLET;
+    ep.data.fd = clnt_sock;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, clnt_sock, &ep);
+    if (ret == -1)
+    {
+        ssock::perr_exit("epoll_ctr error");
+    }
+}
+
+// 38接收未接收完的文件
+void gay::send_part_file()
+{
+    struct epoll_event ep;
+    int clnt_sock = pChat.getServ_fd();
+    char buf[BUFSIZ];
+    json jn, jn2, jn3;
+
+    friends fri;
+    redisContext *c;
+    redisReply *r;
+
+    int ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+    cout << "ret = " << ret << endl;
+    if (ret == 0)
+    {
+        qqqqquit(clnt_sock); //下线
+        return;
+    }
+
+    cout << buf << endl;
+    jn = json::parse(buf);
+    pChat.From_Json(jn, pChat);  //将序列转为类，会修改原有的套间字
+    pChat.setServ_fd(clnt_sock); //将套间字修改回去
+
+    do
+    {
+        c = Redis::RedisConnect("127.0.0.1", 6379);
+
+        //判断是否有未发送完的文件
+        r = Redis::listlpop(c, pChat.getNumber() + "partfile");
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            redisFree(c);
+            break;
+        }
+        if (r->str == NULL)
+        {
+            ssock::SendMsg(clnt_sock, "No file", strlen("No file") + 1);
+            break;
+        }
+        else
+        {
+            ssock::SendMsg(clnt_sock, "Yes", strlen("Yes") + 1);
+        }
+        jn2 = json::parse(r->str);
+        freeReplyObject(r);
+        pChat.From_Json(jn2, pChat);
+        pChat.setServ_fd(clnt_sock); //将套间字修改回去
+
+        //判断发送者发送的人是否是它的好友
+        r = Redis::hsetexist(c, pChat.getNumber() + "friend", pChat.getFriendUid());
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            redisFree(c);
+            break;
+        }
+        if (r->integer == 0) //没有该好友
+        {
+            cout << "没有该好友" << endl;
+            ssock::SendMsg(clnt_sock, "No friend", strlen("No friend") + 1); //将消息转发给自己
+            freeReplyObject(r);
+            redisFree(c);
+            break;
+        }
+        else
+        {
+            ssock::SendMsg(clnt_sock, "Has friend", strlen("Has friend") + 1); //将消息转发给自己
+        }
+        freeReplyObject(r);
+        //判断它是否被它的好友屏蔽了它
+        r = Redis::hgethash(c, pChat.getFriendUid() + "friend", pChat.getNumber());
+        if (r == NULL)
+        {
+            printf("Execut getValue failure\n");
+            redisFree(c);
+            break;
+        }
+        jn3 = json::parse(r->str);
+        fri.From_Json(jn3, fri);
+        if (fri.getflag() == 0)
+        {
+            cout << "屏蔽了" << endl;
+            ssock::SendMsg(clnt_sock, "Has block", strlen("Has block") + 1); //将消息转发给自己
+            freeReplyObject(r);
+            redisFree(c);
+            break;
+        }
+        else
+        {
+            ssock::SendMsg(clnt_sock, "No block", strlen("No block") + 1);
+        }
+        freeReplyObject(r);
+
+        ssock::SendMsg(clnt_sock, jn2.dump().c_str(), strlen(jn2.dump().c_str()) + 1); //给对端发送消息，让对端确认是否继续发送未发完的文件
+        ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
+        if (strcmp(buf, "No") == 0) //对端发No代表不继续发送文件，结束该函数
+        {
+            break;
+        }
+
+        string filename(pChat.getMessage()); //文件名
+        auto f = filename.rfind('/');
+        filename.erase(0, f + 1);
+        filename.insert(0, "../Temporaryfiles/");
+        DIR *d = opendir("../Temporaryfiles");
+        if (d == NULL)
+        {
+            mkdir("../Temporaryfiles", 0777);
+        }
+
+        struct stat file_stat;
+        __off_t size, len;
+        int filefd = open(filename.c_str(), O_RDONLY);
+
+        fstat(filefd, &file_stat);
+        len = file_stat.st_size;
+        len = htonll(len);
+        close(filefd);
+        ssock::SendMsg(clnt_sock, (void *)&len, sizeof(len)); //向对端发送已经接收的文件长度
+
+        FILE *fp = fopen(filename.c_str(), "a");
+
+        int n;
+        //将文件存入本地
+        ret = ssock::ReadMsg(clnt_sock, &size, sizeof(size));
+        if (ret == 0)
+        {
+            qqqqquit(clnt_sock);
+            redisFree(c);
+            return;
+        }
+
+        len = 0; //用来保存已经接收的文件大小
+        size = ntohll(size);
+        cout << "size = " << size << endl;
+        while (size > 0)
+        {
+            if (sizeof(buf) < size)
+            {
+                n = ssock::Readn(clnt_sock, buf, sizeof(buf));
+            }
+            else
+            {
+                n = ssock::Readn(clnt_sock, buf, size);
+            }
+            if (n < 0)
+            {
+                continue;
+            }
+            if (n == 0)
+            {
+                cout << "len = " << len << endl; //已经接收的文件长度
+                //将未发完的文件的文件偏移量等信息保存到数据库中
+                pChat.setName(longtostring(len));
+                pChat.To_Json(jn2, pChat);
+                r = Redis::listrpush(c, pChat.getNumber() + "partfile", jn2.dump());
+                qqqqquit(clnt_sock);
+                redisFree(c);
+                return;
+            }
+            len += n;
+            size -= n;
+            fwrite(buf, n, 1, fp);
+            cout << "size = " << size << endl;
+        }
+
+        //将消息写入一个列表里，然后在客户端从该列表中读取数据，提醒客户端有数据来了
+        r = Redis::listrpush(c, pChat.getFriendUid() + "message", jn.dump().c_str());
+        freeReplyObject(r);
+        //将消息写到一个列表里（包括其中的文件名），让客户端可以知道自己要哪个文件
+        r = Redis::listrpush(c, pChat.getFriendUid() + "file", jn.dump().c_str());
+        freeReplyObject(r);
+
+        fclose(fp);
+        redisFree(c);
+    } while (0);
 
     //执行完添加后将文件描述符挂上监听红黑树
     ep.events = EPOLLIN | EPOLLET;

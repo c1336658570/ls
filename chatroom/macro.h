@@ -27,7 +27,7 @@
 #define JOINGROUP 24            //加入群
 #define QUITGROUP 25            //退出群
 #define HASJOINGROUP 26         //查看已加入的群组（包括权限）
-#define GROUPMEMBERS 27         //查看群组成员（包括权限）
+#define GROUPMEMBERS 27         //查看群组成员（包括权限）/
 #define PULLMANAGEPEOPLE 28     //设置管理员
 #define KICKMANAGEPEOPLE 29     //取消管理员
 #define GROUPAPPLICATION 30     //查看群组申请列表，进行同意或拒绝
@@ -38,5 +38,7 @@
 #define SEND_FILE_GROUP 35      //给群发文件
 #define RECV_FILE_GROUP 36      //接收群文件
 #define RETURNON4 37            //返回上一层
+#define SENDPARTFILE 38         //发送上次未发送完的文件（断点续传）
+#define RECVPARTFILE 39         //接收未接收完的文件
 
 #endif

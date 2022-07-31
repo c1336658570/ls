@@ -63,6 +63,8 @@ public:
     void chat_send_group();       // 34给群发消息
     void send_file_group();       // 35给群发文件
     void recv_file_group();       // 36接收群文件
+    void send_part_file();        //登录后调用，发送上次未发送完成的文件
+    void recv_part_file();        //接收未接收完的文件
 
 private:
     uint32_t flag;     //读取用户输入，保存用户的选项，1登陆，2注册，3找回密码，4退出
@@ -201,8 +203,104 @@ void clnt::login() //登录
         pChat.setNumber(u.getNumber());                               //在此处设置number，一直读消息的线程需要使用
         pthread_create(&tid, NULL, continue_receive, (void *)&pChat); //创建一个接受消息的线程
         pthread_detach(tid);                                          //设置线程分离
+
+        //###########################################################
+        //调用函数，判断是否有上次没有发送完的文件
+        send_part_file(); //发送未发送完的文件
+        recv_part_file(); //接收未接收完的文件
         show_Meun2();
     }
+}
+
+//发送未发送完的文件
+void clnt::send_part_file()
+{
+    privateChat pChat2;
+    char buf[BUFSIZ];
+    string mmm;
+    json jn;
+
+    flag = SENDPARTFILE;            // 38未发送完的文件
+    pChat.setFlag(flag);            //设置操作
+    pChat.setNumber(u.getNumber()); //设置自己的uid
+
+    flag = htonl(flag);
+    ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
+    pChat.To_Json(jn, pChat);                                                  //将类转为序列
+    ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将序列发给服务器
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    if (strcmp(buf, "No file") == 0)
+    {
+        return;
+    }
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    if (strcmp(buf, "No friend") == 0)
+    {
+        return;
+    }
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    if (strcmp(buf, "Has block") == 0)
+    {
+        return;
+    }
+
+    ssock::ReadMsg(clnt_fd, buf, sizeof(buf));
+    jn = json::parse(buf);
+    pChat2.From_Json(jn, pChat2);
+    cout << pChat2.getMessage() << "尚未发送完毕" << endl;
+    cout << "Yes继续发送/No不再发送" << endl;
+    while (!(cin >> mmm) || (mmm != "Yes" && mmm != "No"))
+    {
+        if (cin.eof())
+        {
+            cout << "读到文件结束，函数返回" << endl;
+            return;
+        }
+        cout << "输入有误或密码过长，请重新输入" << endl;
+        cin.clear();
+        cin.ignore(INT32_MAX, '\n');
+    }
+    cin.ignore(INT32_MAX, '\n'); //清空cin缓冲
+
+    ssock::SendMsg(clnt_fd, mmm.c_str(), strlen(mmm.c_str()) + 1);
+    if (mmm == "No")
+    {
+        return;
+    }
+
+    int filefd = open(pChat2.getMessage().c_str(), O_RDONLY);
+    if (filefd == -1)
+    {
+        cout << "文件名或文件路径错误" << endl;
+        return;
+    }
+
+    __off_t len;
+    //获取未发送完的文件长度
+    ssock::ReadMsg(clnt_fd, (void *)&len, sizeof(len));
+    len = ntohll(len);
+    __off_t size;
+    struct stat file_stat;
+    //为了获取文件大小
+    fstat(filefd, &file_stat);
+    size = file_stat.st_size - len;
+    size = htonll(size);
+    ssock::SendMsg(clnt_fd, (void *)&size, sizeof(size));
+    lseek(filefd, len, SEEK_SET);
+
+    int ret;
+    while ((ret = sendfile(clnt_fd, filefd, NULL, file_stat.st_size)) != 0)
+    {
+    }
+    cout << "发送完毕" << endl;
+
+    close(filefd);
+}
+
+void clnt::recv_part_file()
+{
+    
 }
 
 //注册
