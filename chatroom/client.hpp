@@ -170,6 +170,7 @@ void clnt::login() //登录
     ssock::Connect(clnt_fd, atoi(argv[2]), argv[1]);
 
     read_account();
+    flag = LOGIN;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
 
@@ -434,6 +435,7 @@ void clnt::reg()
     int clnt_fd = ssock::Socket();
     ssock::Connect(clnt_fd, atoi(argv[2]), argv[1]);
 
+    flag = REGISTER;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
 
@@ -501,6 +503,7 @@ void clnt::retrieve() //找回密码
     int clnt_fd = ssock::Socket();
     ssock::Connect(clnt_fd, atoi(argv[2]), argv[1]);
 
+    flag = RETRIEVE;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
 
@@ -593,6 +596,7 @@ void clnt::signout() // 9退出登录
 
     pChat.To_Json(jn, pChat); //将类转为序列
 
+    flag = SIGNOUT;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -641,6 +645,7 @@ void clnt::show_Menu3() //好友管理
             inquireAdd();
             break;
         case DELFRIEND:
+            onlineStatus();
             delFriend();
             break;
         case FINDFRIEND:
@@ -650,6 +655,7 @@ void clnt::show_Menu3() //好友管理
             onlineStatus();
             break;
         case BLOCKFRIEND:
+            onlineStatus();
             blockFriend();
             break;
         }
@@ -691,6 +697,7 @@ void clnt::addFriend()
 
     pChat.To_Json(jn, pChat); //将类转为序列
 
+    flag = ADDFRIEND;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将序列发给服务器
@@ -717,6 +724,7 @@ void clnt::inquireAdd()
     json jn;
     privateChat pChat2;
 
+    flag = INQUIREADD;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, (void *)u.getNumber().c_str(), strlen(u.getNumber().c_str()) + 1);
@@ -790,6 +798,7 @@ void clnt::delFriend()
 
     pChat.To_Json(jn, pChat); //将类转为序列
 
+    flag = DELFRIEND;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1); //将序列发给服务器
@@ -811,6 +820,7 @@ void clnt::findFriend()
     json jn;
     char buf[BUFSIZ];
 
+    flag = FINDFRIEND;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
 
@@ -840,6 +850,7 @@ void clnt::onlineStatus()
     onlineUser onlineU;
     friends fri;
 
+    flag = ONLINESTATUS;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
 
@@ -913,6 +924,7 @@ void clnt::blockFriend()
 
     pChat.To_Json(jn, pChat);
 
+    flag = BLOCKFRIEND;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -965,12 +977,15 @@ void clnt::show_Menu4()
         switch (flag)
         {
         case HISTORY_MESSAGE: //历史聊天记录
+            onlineStatus();   //显示好友在线状态
             history_message();
             break;
         case CHAT_SEND_FRIEND:
+            onlineStatus();     //显示好友在线状态
             chat_send_friend(); //和好友聊天
             break;
-        case SEND_FILE: //向好友发文件
+        case SEND_FILE:     //向好友发文件
+            onlineStatus(); //显示好友在线状态
             send_file();
             break;
         case RECV_FILE: //接收文件
@@ -1008,6 +1023,7 @@ void clnt::history_message()
 
     pChat.To_Json(jn, pChat);
 
+    flag = HISTORY_MESSAGE;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, (void *)jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -1067,6 +1083,7 @@ void clnt::chat_send_friend()
     pthread_detach(tid);                                          //设置线程分离
     cout << "输入exit退出" << endl;
 
+    flag = CHAT_SEND_FRIEND;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag)); //向服务器发送要执行的操作
 
@@ -1182,6 +1199,7 @@ void clnt::send_file()
         return;
     }
 
+    flag = SEND_FILE;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     pChat.To_Json(jn, pChat);                                                  //将类转为序列
@@ -1228,6 +1246,7 @@ void clnt::recv_file()
     pChat.setName(u.getName());     //设置自己的姓名
     pChat.To_Json(jn, pChat);
 
+    flag = RECV_FILE;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, (void *)jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -1342,30 +1361,37 @@ void clnt::show_Menu5()
             creategroup();
             break;
         case DISSOLVEGROUP: // 23 解散群
+            hasjoingroup();
             dissolvegroup();
             break;
         case JOINGROUP: // 24加入群
             joingroup();
             break;
         case QUITGROUP: // 25退出群
+            hasjoingroup();
             quitgroup();
             break;
         case HASJOINGROUP: // 26查看已加入的群组
             hasjoingroup();
             break;
         case GROUPMEMBERS: // 27查看群组成员
+            hasjoingroup();
             groupmembers();
             break;
         case PULLMANAGEPEOPLE: // 28设置管理员
+            hasjoingroup();
             pullmanagepeople();
             break;
         case KICKMANAGEPEOPLE: // 29取消管理员
+            hasjoingroup();
             kickmanagepeople();
             break;
         case GROUPAPPLICATION: // 30、查看群组成员申请列表
+            hasjoingroup();
             groupapplication();
             break;
         case KICKPEOPLE: // 31、从群组中移除用户
+            hasjoingroup();
             kickpeople();
             break;
         }
@@ -1395,6 +1421,7 @@ void clnt::creategroup() // 22创建群
     pChat.setFriendUid(groupid);    //设置群号
     pChat.To_Json(jn, pChat);
 
+    flag = CREATEGROUP;
     flag = htonl(flag); //发送要进行的操作
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -1437,6 +1464,7 @@ void clnt::dissolvegroup() // 23解散群
     pChat.setFriendUid(groupid);    //设置群号
     pChat.To_Json(jn, pChat);
 
+    flag = DISSOLVEGROUP;
     flag = htonl(flag); //发送要进行的操作
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -1490,6 +1518,7 @@ void clnt::joingroup()
     //然后直接选择添加群的话message还是exit，由于在弹窗开头就判断了exit，如果是exit不会继续执行后续逻辑，会导致弹窗出问题。
     pChat.To_Json(jn, pChat);
 
+    flag = JOINGROUP;
     flag = htonl(flag); //发送要进行的操作
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -1537,6 +1566,7 @@ void clnt::quitgroup()
     pChat.setFriendUid(groupid);    //设置群号
     pChat.To_Json(jn, pChat);
 
+    flag = QUITGROUP;
     flag = htonl(flag); //发送要进行的操作
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -1574,6 +1604,7 @@ void clnt::hasjoingroup()
     pChat.setName(u.getName());     //设置自己的姓名
     pChat.To_Json(jn, pChat);
 
+    flag = HASJOINGROUP;
     flag = htonl(flag); //发送要进行的操作
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -1627,6 +1658,7 @@ void clnt::groupmembers()
     pChat.setFriendUid(groupid);    //设置群号
     pChat.To_Json(jn, pChat);
 
+    flag = GROUPMEMBERS;
     flag = htonl(flag); //发送要进行的操作
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -1712,6 +1744,7 @@ void clnt::pullmanagepeople() // 28设置管理员
         return;
     }
 
+    flag = PULLMANAGEPEOPLE;
     flag = htonl(flag); //发送要进行的操作
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -1787,6 +1820,7 @@ void clnt::kickmanagepeople()
         return;
     }
 
+    flag = KICKMANAGEPEOPLE;
     flag = htonl(flag); //发送要进行的操作
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -1844,6 +1878,7 @@ void clnt::groupapplication()
     pChat.setFriendUid(groupid);    //设置群号
     pChat.To_Json(jn, pChat);
 
+    flag = GROUPAPPLICATION;
     flag = htonl(flag); //发送要进行的操作
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -1940,6 +1975,7 @@ void clnt::kickpeople()
         return;
     }
 
+    flag = KICKPEOPLE;
     flag = htonl(flag); //发送要进行的操作
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -2005,12 +2041,15 @@ void clnt::show_Menu6()
         switch (flag)
         {
         case HISTORY_GROUPMESSAGE: // 33查看群历史消息记录
+            hasjoingroup();
             history_groupmessage();
             break;
         case CHAT_SEND_GROUP: // 34给群发消息
+            hasjoingroup();
             chat_send_group();
             break;
         case SEND_FILE_GROUP: // 35给群发文件
+            hasjoingroup();
             send_file_group();
             break;
         case RECV_FILE_GROUP: // 36接收群文件
@@ -2047,6 +2086,7 @@ void clnt::history_groupmessage() // 33查看群历史消息记录
 
     pChat.To_Json(jn, pChat);
 
+    flag = HISTORY_GROUPMESSAGE;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, (void *)jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -2098,6 +2138,7 @@ void clnt::chat_send_group() // 34给群发消息
     pthread_detach(tid);                                         //设置线程分离
     cout << "输入exit退出" << endl;
 
+    flag = CHAT_SEND_GROUP;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag)); //向服务器发送要执行的操作
 
@@ -2209,6 +2250,7 @@ void clnt::send_file_group() // 35给群发文件
         return;
     }
 
+    flag = SEND_FILE_GROUP;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     pChat.To_Json(jn, pChat);                                                  //将类转为序列
@@ -2258,6 +2300,7 @@ void clnt::recv_file_group() // 36接收群文件
     pChat.setName(u.getName());     //设置自己的姓名
     pChat.To_Json(jn, pChat);
 
+    flag = RECV_FILE_GROUP;
     flag = htonl(flag);
     ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
     ssock::SendMsg(clnt_fd, (void *)jn.dump().c_str(), strlen(jn.dump().c_str()) + 1);
@@ -2345,6 +2388,7 @@ void *continue_receive(void *arg)
     {
         int ret;
         uint32_t flag = 100;
+
         flag = htonl(flag);
         ret = ssock::SendMsg(clnt_fd, (void *)&flag, sizeof(flag));
         if (ret == -1)
