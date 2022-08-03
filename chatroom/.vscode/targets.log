@@ -1,6 +1,4 @@
 make all --print-data-base --no-builtin-variables --no-builtin-rules --question
-make: *** No rule to make target 'all'.  Stop.
-
 # GNU Make 4.2.1
 # Built for x86_64-pc-linux-gnu
 # Copyright (C) 1988-2016 Free Software Foundation, Inc.
@@ -8,7 +6,7 @@ make: *** No rule to make target 'all'.  Stop.
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Wed Aug  3 17:55:07 2022
+# Make data base, printed on Wed Aug  3 19:13:11 2022
 
 # Variables
 
@@ -95,7 +93,7 @@ XDG_SESSION_DESKTOP = ubuntu
 # environment
 SSH_AUTH_SOCK = /run/user/1000/keyring/ssh
 # environment
-GIO_LAUNCHED_DESKTOP_FILE_PID = 93560
+GIO_LAUNCHED_DESKTOP_FILE_PID = 117958
 # automatic
 %F = $(notdir $%)
 # environment
@@ -205,7 +203,7 @@ GJS_DEBUG_OUTPUT = stderr
 # environment
 LANG = C
 # environment
-VSCODE_PID = 93560
+VSCODE_PID = 117958
 # variable set hash-table stats:
 # Load=97/1024=9%, Rehash=0, Collisions=12/122=10%
 
@@ -280,13 +278,15 @@ makefile:
 # Not a target:
 ssock.hpp:
 #  Implicit rule search has not been done.
- 
 #  Modification time never checked.
 #  File has not been updated.
 
 # Not a target:
 .DEFAULT:
 #  Implicit rule search has not been done.
+ 
+make: *** No rule to make target 'all'.  Stop.
+
 #  Modification time never checked.
 #  File has not been updated.
 
@@ -330,6 +330,6 @@ client.hpp:
 # strcache performance: lookups = 46 / hit rate = 41%
 # hash-table stats:
 # Load=27/8192=0%, Rehash=0, Collisions=1/46=2%
-# Finished Make data base on Wed Aug  3 17:55:07 2022
+# Finished Make data base on Wed Aug  3 19:13:11 2022
 
  
