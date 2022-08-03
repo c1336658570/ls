@@ -1,0 +1,6 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory '/home/cccmmf/task/chatroom'
+g++ -o client client.cc client.hpp ssock.hpp redis.hpp  -lpthread -Wall
+g++ serv.cc servlogin.hpp servfriend.hpp ssock.hpp threadpool.hpp redis.hpp -o serv -lpthread -lhiredis -Wall
+make: Leaving directory '/home/cccmmf/task/chatroom'
+ 

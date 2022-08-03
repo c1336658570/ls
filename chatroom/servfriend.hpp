@@ -803,7 +803,6 @@ void gay::talkwithfriends()
             if (ret == -1)
             {
                 qqqqquit(clnt_sock);
-
                 return;
             }
             freeReplyObject(r);

@@ -178,8 +178,15 @@ public:
         time_t timeN;
         time(&timeN);
         timeNow = ctime(&timeN);
-        for (int i = 0; i < 4; ++i)
-            timeNow[timeNow.find(' ')] = '-';
+        while (1)
+        {
+            auto a = timeNow.find(' ');
+            if (a == string::npos)
+            {
+                break;
+            }
+            timeNow[a] = '-';
+        }
     }
     string getTimeNow()
     {
