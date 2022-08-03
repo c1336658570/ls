@@ -1,4 +1,9 @@
 make all --print-data-base --no-builtin-variables --no-builtin-rules --question
+<<<<<<< HEAD
+=======
+make: *** No rule to make target 'all'.  Stop.
+
+>>>>>>> a89e094389f430cd598a9d22e1f984326a7eab38
 # GNU Make 4.2.1
 # Built for x86_64-pc-linux-gnu
 # Copyright (C) 1988-2016 Free Software Foundation, Inc.
@@ -6,7 +11,11 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
+<<<<<<< HEAD
 # Make data base, printed on Wed Aug  3 19:13:11 2022
+=======
+# Make data base, printed on Wed Aug  3 16:47:01 2022
+>>>>>>> a89e094389f430cd598a9d22e1f984326a7eab38
 
 # Variables
 
@@ -93,7 +102,11 @@ XDG_SESSION_DESKTOP = ubuntu
 # environment
 SSH_AUTH_SOCK = /run/user/1000/keyring/ssh
 # environment
+<<<<<<< HEAD
 GIO_LAUNCHED_DESKTOP_FILE_PID = 117958
+=======
+GIO_LAUNCHED_DESKTOP_FILE_PID = 8474
+>>>>>>> a89e094389f430cd598a9d22e1f984326a7eab38
 # automatic
 %F = $(notdir $%)
 # environment
@@ -175,6 +188,11 @@ GDK_BACKEND = x11
 # automatic
 +F = $(notdir $+)
 # environment
+<<<<<<< HEAD
+=======
+NO_AT_BRIDGE = 1
+# environment
+>>>>>>> a89e094389f430cd598a9d22e1f984326a7eab38
 QT_ACCESSIBILITY = 1
 # default
 MAKEFILES := 
@@ -203,9 +221,15 @@ GJS_DEBUG_OUTPUT = stderr
 # environment
 LANG = C
 # environment
+<<<<<<< HEAD
 VSCODE_PID = 117958
 # variable set hash-table stats:
 # Load=97/1024=9%, Rehash=0, Collisions=12/122=10%
+=======
+VSCODE_PID = 8474
+# variable set hash-table stats:
+# Load=98/1024=10%, Rehash=0, Collisions=12/123=10%
+>>>>>>> a89e094389f430cd598a9d22e1f984326a7eab38
 
 # Pattern-specific Variable Values
 
@@ -213,9 +237,15 @@ VSCODE_PID = 117958
 
 # Directories
 
+<<<<<<< HEAD
 # . (device 66310, inode 5300257): 18 files, no impossibilities.
 
 # 18 files, no impossibilities in 1 directories.
+=======
+# . (device 66310, inode 5300257): 20 files, no impossibilities.
+
+# 20 files, no impossibilities in 1 directories.
+>>>>>>> a89e094389f430cd598a9d22e1f984326a7eab38
 
 # Implicit Rules
 
@@ -243,6 +273,10 @@ client: client.cc client.hpp ssock.hpp serv.cc servlogin.hpp servfriend.hpp ssoc
 #  File has not been updated.
 #  recipe to execute (from 'makefile', line 4):
 	g++ -o client client.cc client.hpp ssock.hpp redis.hpp  -lpthread -Wall
+<<<<<<< HEAD
+=======
+ 
+>>>>>>> a89e094389f430cd598a9d22e1f984326a7eab38
 	g++ serv.cc servlogin.hpp servfriend.hpp ssock.hpp threadpool.hpp redis.hpp -o serv -lpthread -lhiredis -Wall
 
 .PHONY: serv client clean
@@ -284,9 +318,12 @@ ssock.hpp:
 # Not a target:
 .DEFAULT:
 #  Implicit rule search has not been done.
+<<<<<<< HEAD
  
 make: *** No rule to make target 'all'.  Stop.
 
+=======
+>>>>>>> a89e094389f430cd598a9d22e1f984326a7eab38
 #  Modification time never checked.
 #  File has not been updated.
 
@@ -327,9 +364,16 @@ client.hpp:
 # strcache buffers: 1 (0) / strings = 27 / storage = 264 B / avg = 9 B
 # current buf: size = 8162 B / used = 264 B / count = 27 / avg = 9 B
 
+<<<<<<< HEAD
 # strcache performance: lookups = 46 / hit rate = 41%
 # hash-table stats:
 # Load=27/8192=0%, Rehash=0, Collisions=1/46=2%
 # Finished Make data base on Wed Aug  3 19:13:11 2022
+=======
+# strcache performance: lookups = 48 / hit rate = 43%
+# hash-table stats:
+# Load=27/8192=0%, Rehash=0, Collisions=1/48=2%
+# Finished Make data base on Wed Aug  3 16:47:01 2022
+>>>>>>> a89e094389f430cd598a9d22e1f984326a7eab38
 
  

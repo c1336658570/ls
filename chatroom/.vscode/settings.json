@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
     "makefile.extensionOutputFolder": "./.vscode",
     "files.associations": {
         "iostream": "cpp",
@@ -55,4 +56,7 @@
         "typeinfo": "cpp",
         "valarray": "cpp"
     }
+=======
+    "makefile.extensionOutputFolder": "./.vscode"
+>>>>>>> a89e094389f430cd598a9d22e1f984326a7eab38
 }
