@@ -70,28 +70,24 @@ int main(int argc, char *argv[])
                 int tcp_keepalive_probes = 5; // TCP发送保活探测消息以确定连接是否已断开的次数。默认值为9次
                 int tcp_keepalive_time = 5;   //允许的持续空闲时间。默认值为7200s（2h）
                 int tcp_keepalive_on = 1;
-
                 if (setsockopt(clnt_fd, SOL_TCP, TCP_KEEPINTVL,
                                &tcp_keepalive_intvl, sizeof(tcp_keepalive_intvl)) < 0)
                 {
                     perror("");
                     exit(-1);
                 }
-
                 if (setsockopt(clnt_fd, SOL_TCP, TCP_KEEPCNT,
                                &tcp_keepalive_probes, sizeof(tcp_keepalive_probes)) < 0)
                 {
                     perror("");
                     exit(-1);
                 }
-
                 if (setsockopt(clnt_fd, SOL_TCP, TCP_KEEPIDLE,
                                &tcp_keepalive_time, sizeof(tcp_keepalive_time)) < 0)
                 {
                     perror("");
                     exit(-1);
                 }
-
                 if (setsockopt(clnt_fd, SOL_SOCKET, SO_KEEPALIVE,
                                &tcp_keepalive_on, sizeof(tcp_keepalive_on)))
                 {
@@ -100,7 +96,6 @@ int main(int argc, char *argv[])
                 }
 
                 printf("%d连接\n", clnt_fd);
-
                 int permission = fcntl(clnt_fd, F_GETFL);
                 permission |= O_NONBLOCK;
                 fcntl(clnt_fd, F_SETFL, permission);
@@ -125,7 +120,7 @@ int main(int argc, char *argv[])
                 uint32_t flag = 0;
 
                 ret = ssock::ReadMsg(sock, (void *)&flag, sizeof(flag));
-                if (ret == 0)
+                if (ret == 0 || ret == -1)
                 {
                     qqqqquit(sock); //将其从在线用户中删除
                     continue;
