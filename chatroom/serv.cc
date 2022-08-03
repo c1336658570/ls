@@ -1,5 +1,7 @@
 #include "servfriend.hpp"
 #include "servlogin.hpp"
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 int main(int argc, char *argv[])
 {
@@ -64,6 +66,14 @@ int main(int argc, char *argv[])
             if (ep[i].data.fd == serv_fd)
             {
                 clnt_fd = ssock::Accept(serv_fd);
+                int keepAlive = 1;    //开启keepalive属性. 缺省值: 0(关闭)
+                int keepIdle = 3;     //如果在1秒内没有任何数据交互,则进行探测. 缺省值:7200(s)
+                int keepInterval = 1; //探测时发探测包的时间间隔为1秒. 缺省值:75(s)
+                int keepCount = 3;    //探测重试的次数. 全部超时则认定连接失效..缺省值:9(次)
+                setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepAlive, sizeof(keepAlive));
+                setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void *)&keepIdle, sizeof(keepIdle));
+                setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, (void *)&keepInterval, sizeof(keepInterval));
+                setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, (void *)&keepCount, sizeof(keepCount));
                 printf("%d连接\n", clnt_fd);
 
                 int permission = fcntl(clnt_fd, F_GETFL);
