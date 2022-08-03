@@ -355,7 +355,7 @@ void gay::inquqireAdd()
     string addf = "addfriend";
 
     int ret = ssock::ReadMsg(clnt_sock, number, sizeof(number));
-    if (ret == 0)
+    if (ret == 0 || ret == -1)
     {
         qqqqquit(clnt_sock);
         cout << "clnt_sock"
@@ -390,10 +390,9 @@ void gay::inquqireAdd()
         }
         freeReplyObject(r);
         ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
-        if (ret == 0)
+        if (ret == 0 || ret == -1)
         {
             qqqqquit(clnt_sock);
-
             return;
         }
         if (strcmp(buf, "Yes") == 0)
@@ -750,10 +749,9 @@ void gay::talkwithfriends()
     {
         int ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
         cout << "ret = " << ret << endl;
-        if (ret == 0)
+        if (ret == 0 || ret == -1)
         {
             qqqqquit(clnt_sock); //下线
-
             return;
         }
 
@@ -936,7 +934,7 @@ void gay::send_file()
 
     int ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
     cout << "ret = " << ret << endl;
-    if (ret == 0)
+    if (ret == 0 || ret == -1)
     {
         qqqqquit(clnt_sock); //下线
         return;
@@ -1009,10 +1007,9 @@ void gay::send_file()
         //将文件存入本地
         __off_t size;
         ret = ssock::ReadMsg(clnt_sock, &size, sizeof(size));
-        if (ret == 0)
+        if (ret == 0 || ret == -1)
         {
             qqqqquit(clnt_sock);
-
             return;
         }
 
@@ -1081,7 +1078,7 @@ void gay::recv_file()
     int ret;
 
     ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
-    if (ret == 0)
+    if (ret == 0 || ret == -1)
     {
         qqqqquit(clnt_sock);
         cout << "clnt_sock"
@@ -1118,10 +1115,9 @@ void gay::recv_file()
         }
         freeReplyObject(r);
         ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
-        if (ret == 0)
+        if (ret == 0 || ret == -1)
         {
             qqqqquit(clnt_sock);
-
             return;
         }
         if (strcmp(buf, "Yes") == 0)
@@ -1973,10 +1969,9 @@ void gay::groupapplication()
                             return;
                         }
                         ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
-                        if (ret == 0)
+                        if (ret == 0 || ret == -1)
                         {
                             qqqqquit(clnt_sock);
-
                             return;
                         }
                         if (strcmp(buf, "Yes") == 0)
@@ -2191,10 +2186,9 @@ void gay::chat_send_group() // 34给群发消息
     while (1)
     {
         int ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
-        if (ret == 0)
+        if (ret == 0 || ret == -1)
         {
             qqqqquit(clnt_sock); //下线
-
             return;
         }
 
@@ -2373,7 +2367,7 @@ void gay::send_file_group() // 35从客户端读文件
     cout << "clnt_socl = " << clnt_sock << endl;
     int ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
     cout << "ret = " << ret << endl;
-    if (ret == 0)
+    if (ret == 0 || ret == -1)
     {
         qqqqquit(clnt_sock); //下线
         return;
@@ -2447,10 +2441,9 @@ void gay::send_file_group() // 35从客户端读文件
                 //将文件存入本地
                 __off_t size;
                 ret = ssock::ReadMsg(clnt_sock, &size, sizeof(size));
-                if (ret == 0)
+                if (ret == 0 || ret == -1)
                 {
                     qqqqquit(clnt_sock);
-
                     return;
                 }
                 size = ntohll(size);
@@ -2529,7 +2522,7 @@ void gay::recv_file_group() // 36给群成员发文件
     int ret;
 
     ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
-    if (ret == 0)
+    if (ret == 0 || ret == -1)
     {
         qqqqquit(clnt_sock);
         cout << "clnt_sock"
@@ -2568,10 +2561,9 @@ void gay::recv_file_group() // 36给群成员发文件
         }
         freeReplyObject(r);
         ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
-        if (ret == 0)
+        if (ret == 0 || ret == -1)
         {
             qqqqquit(clnt_sock);
-
             return;
         }
         if (strcmp(buf, "Yes") == 0)
@@ -2648,7 +2640,7 @@ void gay::send_part_file()
 
     int ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
     cout << "ret = " << ret << endl;
-    if (ret == 0)
+    if (ret == 0 || ret == -1)
     {
         qqqqquit(clnt_sock); //下线
         return;
@@ -2765,10 +2757,9 @@ void gay::send_part_file()
         int n;
         //将文件存入本地
         ret = ssock::ReadMsg(clnt_sock, &size, sizeof(size));
-        if (ret == 0)
+        if (ret == 0 || ret == -1)
         {
             qqqqquit(clnt_sock);
-
             return;
         }
 
@@ -2836,7 +2827,7 @@ void gay::recv_part_file()
     int ret;
 
     ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
-    if (ret == 0)
+    if (ret == 0 || ret == -1)
     {
         qqqqquit(clnt_sock);
         cout << "clnt_sock"
@@ -2887,10 +2878,9 @@ void gay::recv_part_file()
         }
 
         ret = ssock::ReadMsg(clnt_sock, buf, sizeof(buf));
-        if (ret == 0)
+        if (ret == 0 || ret == -1)
         {
             qqqqquit(clnt_sock);
-
             return;
         }
         if (strcmp(buf, "Yes") == 0)
@@ -2969,7 +2959,7 @@ void *continue_send(void *arg)
     string message = "message";
 
     int ret = ssock::ReadMsg(clnt_sock, number, sizeof(number));
-    if (ret == 0)
+    if (ret == 0 || ret == -1)
     {
         qqqqquit(clnt_sock);
         cout << "clnt_sock"
