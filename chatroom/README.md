@@ -56,11 +56,13 @@
 
 ### 1.安装
 
-需要安装库
-
-```c
+```bash
+hiredis
 redis
 nlohmann/json
+gcc
+g++
+make
 ```
 
 ### 2.build
