@@ -1146,9 +1146,7 @@ void gay::recv_file()
             cout << "file_stat.st_size = " << file_stat.st_size << endl;
             while ((ret = sendfile(clnt_sock, filefd, NULL, file_stat.st_size)) != 0)
             {
-                cout << "errno = " << errno << endl;
-                perror("sendfile");
-                if (ret == -1 && (errno == 104 || errno == EPIPE))
+                if (ret == -1 && (errno == 104 || errno == EPIPE || errno == EBADF))
                 {
                     cout << "errno" << errno << endl;
                     qqqqquit(clnt_sock);
@@ -2593,10 +2591,9 @@ void gay::recv_file_group() // 36给群成员发文件
             while ((ret = sendfile(clnt_sock, filefd, NULL, file_stat.st_size)) != 0)
             {
                 cout << "ret = " << ret << endl;
-                if (ret == -1 && errno == EPIPE)
+                if (ret == -1 && (errno == 104 || errno == EPIPE || errno == EBADF))
                 {
                     qqqqquit(clnt_sock);
-
                     return;
                 }
             }
@@ -2915,7 +2912,7 @@ void gay::recv_part_file()
             {
                 cout << "errno = " << errno << endl;
                 perror("sendfile");
-                if (ret == -1 && (errno == 104 || errno == EPIPE))
+                if (ret == -1 && (errno == 104 || errno == EPIPE || errno == EBADF))
                 {
                     cout << "errno" << errno << endl;
                     qqqqquit(clnt_sock);
