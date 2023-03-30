@@ -81,5 +81,7 @@
     "sqlite3.h": "c",
     "safequeue.h": "c",
     "queue": "cpp"
-  }
+  },
+  "editor.suggest.snippetsPreventQuickSuggestions": false,
+  "aiXcoder.showTrayIcon": true
 }
