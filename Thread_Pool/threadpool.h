@@ -1,31 +1,29 @@
 #ifndef _THREADPOOL_H
 #define _THREADPOOL_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <pthread.h>
-#include <unistd.h>
-
 typedef struct ThreadPool ThreadPool;
+// 创建线程池并初始化
+ThreadPool *thread_pool_create(int min, int max, int queueSize);
 
-//创建线程池并初始化
-ThreadPool *threadPoolCreate(int min, int max, int queueSize);
+// 销毁线程池
+int thread_pool_destroy(ThreadPool* pool);
 
-//销毁线程池
-int threadPoolDestroy(ThreadPool *);
+// 给线程池添加任务
+void thread_pool_add(ThreadPool* pool, void(*func)(void*), void* arg);
 
-//给线程池添加任务
-void threadPoolAdd(ThreadPool *, void (*func)(void *), void *);
+// 获取线程池中工作的线程的个数
+int thread_pool_busy_num(ThreadPool* pool);
 
-//获取线程池中工作线程的个数
-int threadPoolBusyNum(ThreadPool *);
+// 获取线程池中活着的线程的个数
+int thread_pool_alive_num(ThreadPool* pool);
 
-//获取线程池中活着的线程的个数
-int threadPoolAliveNum(ThreadPool *);
-/////////////////////////
-void *worker(void *);
-void *manager(void *);
-void threadExit(ThreadPool *);
-
+//////////////////////
+// 工作的线程(消费者线程)任务函数
+void* worker(void* arg);
+// 管理者线程任务函数
+void* manager(void* arg);
+// 单个线程退出
+void thread_exit(ThreadPool* pool);
+// 线程池关闭
+void shutdown_exit();
 #endif

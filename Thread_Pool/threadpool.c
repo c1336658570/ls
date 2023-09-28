@@ -1,4 +1,9 @@
 #include "threadpool.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <string.h>
 
 const int NUMBER = 2;
 
@@ -13,31 +18,31 @@ typedef struct Task
 struct ThreadPool
 {
     // 任务队列
-    Task *taskQ;
-    int queueCapacity; // 容量
-    int queueSize;     // 当前任务个数
-    int queueFront;    // 队头 -> 取数据
-    int queueRear;     // 队尾 -> 放数据
+    Task* taskQ;
+    int queueCapacity;  // 容量
+    int queueSize;      // 当前任务个数
+    int queueFront;     // 队头 -> 取数据
+    int queueRear;      // 队尾 -> 放数据
 
-    pthread_t managerID;       // 管理者线程ID
-    pthread_t *threadIDs;      // 工作的线程ID
-    int minNum;                // 最小线程数量
-    int maxNum;                // 最大线程数量
-    int busyNum;               // 忙的线程的个数
-    int liveNum;               // 存活的线程的个数
-    int exitNum;               // 要销毁的线程个数
-    pthread_mutex_t mutexPool; // 锁整个的线程池
-    pthread_mutex_t mutexBusy; // 锁busyNum变量
-    pthread_cond_t notFull;    // 任务队列是不是满了
-    pthread_cond_t notEmpty;   // 任务队列是不是空了
+    pthread_t managerID;    // 管理者线程ID
+    pthread_t *threadIDs;   // 工作的线程ID
+    int minNum;             // 最小线程数量
+    int maxNum;             // 最大线程数量
+    int busyNum;            // 忙的线程的个数
+    int liveNum;            // 存活的线程的个数
+    int exitNum;            // 要销毁的线程个数
+    pthread_mutex_t mutexPool;  // 锁整个的线程池
+    pthread_mutex_t mutexBusy;  // 锁busyNum变量
+    pthread_cond_t notFull;     // 任务队列是不是满了
+    pthread_cond_t notEmpty;    // 任务队列是不是空了
 
-    int shutdown; // 是不是要销毁线程池, 销毁为1, 不销毁为0
+    int shutdown;           // 是不是要销毁线程池, 销毁为1, 不销毁为0
 };
 
-ThreadPool *threadPoolCreate(int min, int max, int queueSize)
+ThreadPool* thread_pool_create(int min, int max, int queueSize)
 {
-    ThreadPool *pool = (ThreadPool *)malloc(sizeof(ThreadPool));
-    do
+    ThreadPool* pool = (ThreadPool*)malloc(sizeof(ThreadPool));
+    do 
     {
         if (pool == NULL)
         {
@@ -45,7 +50,7 @@ ThreadPool *threadPoolCreate(int min, int max, int queueSize)
             break;
         }
 
-        pool->threadIDs = (pthread_t *)malloc(sizeof(pthread_t) * max);
+        pool->threadIDs = (pthread_t*)malloc(sizeof(pthread_t) * max);
         if (pool->threadIDs == NULL)
         {
             printf("malloc threadIDs fail...\n");
@@ -55,7 +60,7 @@ ThreadPool *threadPoolCreate(int min, int max, int queueSize)
         pool->minNum = min;
         pool->maxNum = max;
         pool->busyNum = 0;
-        pool->liveNum = min; // 和最小个数相等
+        pool->liveNum = min;    // 和最小个数相等
         pool->exitNum = 0;
 
         if (pthread_mutex_init(&pool->mutexPool, NULL) != 0 ||
@@ -68,7 +73,7 @@ ThreadPool *threadPoolCreate(int min, int max, int queueSize)
         }
 
         // 任务队列
-        pool->taskQ = (Task *)malloc(sizeof(Task) * queueSize);
+        pool->taskQ = (Task*)malloc(sizeof(Task) * queueSize);
         pool->queueCapacity = queueSize;
         pool->queueSize = 0;
         pool->queueFront = 0;
@@ -86,17 +91,14 @@ ThreadPool *threadPoolCreate(int min, int max, int queueSize)
     } while (0);
 
     // 释放资源
-    if (pool && pool->threadIDs)
-        free(pool->threadIDs);
-    if (pool && pool->taskQ)
-        free(pool->taskQ);
-    if (pool)
-        free(pool);
+    if (pool && pool->threadIDs) free(pool->threadIDs);
+    if (pool && pool->taskQ) free(pool->taskQ);
+    if (pool) free(pool);
 
     return NULL;
 }
 
-int threadPoolDestroy(ThreadPool *pool)
+int thread_pool_destroy(ThreadPool* pool)
 {
     if (pool == NULL)
     {
@@ -133,7 +135,8 @@ int threadPoolDestroy(ThreadPool *pool)
     return 0;
 }
 
-void threadPoolAdd(ThreadPool *pool, void (*func)(void *), void *arg)
+
+void thread_pool_add(ThreadPool* pool, void(*func)(void*), void* arg)
 {
     pthread_mutex_lock(&pool->mutexPool);
     while (pool->queueSize == pool->queueCapacity && !pool->shutdown)
@@ -156,7 +159,7 @@ void threadPoolAdd(ThreadPool *pool, void (*func)(void *), void *arg)
     pthread_mutex_unlock(&pool->mutexPool);
 }
 
-int threadPoolBusyNum(ThreadPool *pool)
+int thread_pool_busy_num(ThreadPool* pool)
 {
     pthread_mutex_lock(&pool->mutexBusy);
     int busyNum = pool->busyNum;
@@ -164,7 +167,7 @@ int threadPoolBusyNum(ThreadPool *pool)
     return busyNum;
 }
 
-int threadPoolAliveNum(ThreadPool *pool)
+int thread_pool_alive_num(ThreadPool* pool)
 {
     pthread_mutex_lock(&pool->mutexPool);
     int aliveNum = pool->liveNum;
@@ -172,9 +175,9 @@ int threadPoolAliveNum(ThreadPool *pool)
     return aliveNum;
 }
 
-void *worker(void *arg)
+void* worker(void* arg)
 {
-    ThreadPool *pool = (ThreadPool *)arg;
+    ThreadPool* pool = (ThreadPool*)arg;
 
     while (1)
     {
@@ -193,7 +196,7 @@ void *worker(void *arg)
                 {
                     pool->liveNum--;
                     pthread_mutex_unlock(&pool->mutexPool);
-                    threadExit(pool);
+                    thread_exit(pool);
                 }
             }
         }
@@ -202,7 +205,7 @@ void *worker(void *arg)
         if (pool->shutdown)
         {
             pthread_mutex_unlock(&pool->mutexPool);
-            threadExit(pool);
+            shutdown_exit();
         }
 
         // 从任务队列中取出一个任务
@@ -232,9 +235,9 @@ void *worker(void *arg)
     return NULL;
 }
 
-void *manager(void *arg)
+void* manager(void* arg)
 {
-    ThreadPool *pool = (ThreadPool *)arg;
+    ThreadPool* pool = (ThreadPool*)arg;
     while (!pool->shutdown)
     {
         // 每隔3s检测一次
@@ -257,7 +260,8 @@ void *manager(void *arg)
         {
             pthread_mutex_lock(&pool->mutexPool);
             int counter = 0;
-            for (int i = 0; i < pool->maxNum && counter < NUMBER && pool->liveNum < pool->maxNum; ++i)
+            for (int i = 0; i < pool->maxNum && counter < NUMBER
+                && pool->liveNum < pool->maxNum; ++i)
             {
                 if (pool->threadIDs[i] == 0)
                 {
@@ -285,7 +289,7 @@ void *manager(void *arg)
     return NULL;
 }
 
-void threadExit(ThreadPool *pool)
+void thread_exit(ThreadPool* pool)
 {
     pthread_t tid = pthread_self();
     for (int i = 0; i < pool->maxNum; ++i)
@@ -293,9 +297,16 @@ void threadExit(ThreadPool *pool)
         if (pool->threadIDs[i] == tid)
         {
             pool->threadIDs[i] = 0;
-            printf("threadExit() called, %ld exiting...\n", tid);
+            printf("thread_exit() called, %ld exiting...\n", tid);
             break;
         }
     }
+    pthread_exit(NULL);
+}
+
+void shutdown_exit()
+{
+    printf("shutdown_exit() called, %ld exiting...\n", pthread_self());
+
     pthread_exit(NULL);
 }
